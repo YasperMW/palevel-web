@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Profile Setup - PaLevel</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Anta&display=swap');
+        
+        .anta-font {
+            font-family: 'Anta', sans-serif;
+        }
+        
+        .gradient-bg {
+            background: linear-gradient(135deg, #07746B 0%, #0DDAC9 100%);
+        }
+        
+        .glass-effect {
+            background: rgba(255, 255, 255, 0.15);
+            backdrop-filter: blur(10px);
+            border: 2px solid rgba(255, 255, 255, 0.3);
+        }
+        
+        .slide-up {
+            animation: slideUp 0.8s ease-out;
+        }
+        
+        @keyframes slideUp {
+            0% {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            100% {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+    </style>
+</head>
+<body class="gradient-bg min-h-screen flex items-center justify-center p-4">
+    <!-- Background Logo Effect -->
+    <div class="absolute inset-0 flex items-center justify-center opacity-5 pointer-events-none">
+        <div class="w-96 h-96 bg-white rounded-full"></div>
+    </div>
+
+    <div class="w-full max-w-2xl glass-effect rounded-2xl p-8 shadow-2xl slide-up relative z-10">
+        <div class="mb-8 flex items-center justify-between">
+            <div>
+                <h2 class="text-white text-3xl anta-font font-bold">Complete Profile</h2>
+                <div class="text-white/80 mt-1">Step 3 of 3</div>
+            </div>
+            <div class="glass-effect w-14 h-14 rounded-full flex items-center justify-center shadow-lg">
+                <i class="fas fa-user-check text-white text-2xl"></i>
+            </div>
+        </div>
+
+        <form id="profileForm" class="space-y-6">
+            @csrf
+            
+            <!-- Password Section -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                    <label for="password" class="block text-sm font-medium text-white mb-2">Password</label>
+                    <div class="relative">
+                        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                            <i class="fas fa-lock text-white/60"></i>
+                        </div>
+                        <input name="password" id="password" type="password" 
+                               class="pl-10 w-full px-4 py-3 bg-white/20 border border-white/30 rounded-lg text-white placeholder-white/60 focus:outline-none focus:ring-2 focus:ring-white/50 focus:border-transparent transition-all"
+                               placeholder="Create password" />
+                    </div>
+                </div>
+                <div>
+                    <label for="password_confirmation" class="block text-sm font-medium text-white mb-2">Confirm Password</label>
+                    <div class="relative">
+                        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                            <i class="fas fa-lock text-white/60"></i>
+                        </div>
+                        <input name="password_confirmation" id="password_confirmation" type="password" 
+                               class="pl-10 w-full px-4 py-3 bg-white/20 border border-white/30 rounded-lg text-white placeholder-white/60 focus:outline-none focus:ring-2 focus:ring-white/50 focus:border-transparent transition-all"
+                               placeholder="Confirm password" />
+                    </div>
+                </div>
+            </div>
+
+            <!-- Demographics Section -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                    <label for="gender" class="block text-sm font-medium text-white mb-2">Gender</label>
+                    <div class="relative">
+                        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                            <i class="fas fa-venus-mars text-white/60"></i>
+                        </div>
+                        <select name="gender" id="gender" 
+                                class="pl-10 w-full px-4 py-3 bg-white/20 border border-white/30 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-white/50 focus:border-transparent transition-all appearance-none">
+                            <option value="" class="text-gray-800">Select Gender</option>
+                            <option value="Male" class="text-gray-800">Male</option>
+                            <option value="Female" class="text-gray-800">Female</option>
+                            <option value="Prefer not to say" class="text-gray-800">Prefer not to say</option>
+                        </select>
+                        <div class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+                            <i class="fas fa-chevron-down text-white/60"></i>
+                        </div>
+                    </div>
+                </div>
+                <div>
+                    <label for="date_of_birth" class="block text-sm font-medium text-white mb-2">Date of Birth</label>
+                    <div class="relative">
+                        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                            <i class="fas fa-calendar-alt text-white/60"></i>
+                        </div>
+                        <input name="date_of_birth" id="date_of_birth" type="date" 
+                               class="pl-10 w-full px-4 py-3 bg-white/20 border border-white/30 rounded-lg text-white placeholder-white/60 focus:outline-none focus:ring-2 focus:ring-white/50 focus:border-transparent transition-all" />
+                    </div>
+                </div>
+            </div>
+
+            <!-- Student Specific Fields -->
+            <div id="studentFields" class="space-y-6 hidden">
+                <div>
+                    <label for="university" class="block text-sm font-medium text-white mb-2">University</label>
+                    <div class="relative">
+                        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                            <i class="fas fa-university text-white/60"></i>
+                        </div>
+                        <select id="university" name="university" 
+                                class="pl-10 w-full px-4 py-3 bg-white/20 border border-white/30 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-white/50 focus:border-transparent transition-all appearance-none">
+                        </select>
+                        <div class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+                            <i class="fas fa-chevron-down text-white/60"></i>
+                        </div>
+                    </div>
+                </div>
+                <div>
+                    <label for="year_of_study" class="block text-sm font-medium text-white mb-2">Year of Study</label>
+                    <div class="relative">
+                        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                            <i class="fas fa-graduation-cap text-white/60"></i>
+                        </div>
+                        <select id="year_of_study" name="year_of_study" 
+                                class="pl-10 w-full px-4 py-3 bg-white/20 border border-white/30 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-white/50 focus:border-transparent transition-all appearance-none">
+                            <option value="" class="text-gray-800">Select Year</option>
+                            <option value="1st Year" class="text-gray-800">1st Year</option>
+                            <option value="2nd Year" class="text-gray-800">2nd Year</option>
+                            <option value="3rd Year" class="text-gray-800">3rd Year</option>
+                            <option value="4th Year" class="text-gray-800">4th Year</option>
+                            <option value="Postgraduate" class="text-gray-800">Postgraduate</option>
+                        </select>
+                        <div class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+                            <i class="fas fa-chevron-down text-white/60"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Landlord Specific Fields -->
+             <div id="landlordFields" class="space-y-6 hidden">
+                <div>
+                    <label for="national_id_image" class="block text-sm font-medium text-white mb-2">National ID Image</label>
+                    <div class="relative">
+                         <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                            <i class="fas fa-id-card text-white/60"></i>
+                        </div>
+                        <input type="file" name="national_id_image" id="national_id_image" accept="image/*"
+                               class="pl-10 w-full px-4 py-3 bg-white/20 border border-white/30 rounded-lg text-white file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-white file:text-teal-700 hover:file:bg-gray-100 transition-all cursor-pointer" />
+                    </div>
+                    <p class="text-xs text-white/70 mt-1">Upload a clear photo of your National ID for verification.</p>
+                </div>
+            </div>
+
+            <div class="flex items-center justify-between pt-4">
+                <a href="{{ route('signup.verify') }}" class="text-white/80 hover:text-white transition-colors flex items-center">
+                    <i class="fas fa-arrow-left mr-2"></i> Back
+                </a>
+                <button type="button" id="completeBtn" 
+                        class="bg-white text-teal-700 px-8 py-3 rounded-lg font-semibold hover:bg-gray-100 transform hover:scale-105 transition-all duration-300 shadow-lg flex items-center">
+                    Complete Signup <i class="fas fa-check-circle ml-2"></i>
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <script>
+        const completeBtn = document.getElementById('completeBtn');
+        const studentFields = document.getElementById('studentFields');
+        const landlordFields = document.getElementById('landlordFields');
+        const userType = '{{ $userType ?? session('signup_user_type','tenant') }}';
+
+        if(userType === 'tenant') studentFields.classList.remove('hidden');
+        if(userType === 'landlord') landlordFields.classList.remove('hidden');
+
+        async function loadUniversities(){
+            try{
+                const res = await fetch("{{ route('signup.universities') }}");
+                const list = await res.json();
+                const sel = document.getElementById('university');
+                sel.innerHTML = '<option value="" class="text-gray-800">Select University</option>' + list.map(u=>`<option class="text-gray-800">${u}</option>`).join('');
+            }catch(e){ console.warn('Failed to load universities'); }
+        }
+
+        loadUniversities();
+
+        function validatePassword(pw) {
+            if(!pw) return { ok:false, msg: 'Password is required' };
+            const errors = [];
+            if(pw.length < 8) errors.push('at least 8 characters');
+            if(!/[a-z]/.test(pw)) errors.push('a lowercase letter');
+            if(!/[A-Z]/.test(pw)) errors.push('an uppercase letter');
+            if(!/[0-9]/.test(pw)) errors.push('a digit');
+            if(!/[^A-Za-z0-9]/.test(pw)) errors.push('a special character');
+            if(errors.length) return { ok:false, msg: 'Password must contain: ' + errors.join(', ') };
+            return { ok:true };
+        }
+
+        completeBtn.addEventListener('click', async ()=>{
+            // client-side validation to match backend messages
+            const pw = document.getElementById('password').value;
+            const pwc = document.getElementById('password_confirmation').value;
+            const vPw = validatePassword(pw);
+            if(!vPw.ok){ alert(vPw.msg); return; }
+            if(pw !== pwc){ alert('Password confirmation does not match'); return; }
+
+            // Build payload - use FormData if landlord file is present
+            let useFormData = false;
+            const fileInput = document.getElementById('national_id_image');
+            if (userType === 'landlord' && fileInput && fileInput.files.length > 0) {
+                useFormData = true;
+            }
+
+            try{
+                completeBtn.disabled = true; 
+                const originalText = completeBtn.innerHTML;
+                completeBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Creating account...';
+
+                if (useFormData) {
+                    const fd = new FormData();
+                    fd.append('_token', document.querySelector('input[name="_token"]').value);
+                    fd.append('password', pw);
+                    fd.append('password_confirmation', pwc);
+                    fd.append('gender', document.getElementById('gender').value);
+                    fd.append('date_of_birth', document.getElementById('date_of_birth').value);
+                    fd.append('university', document.getElementById('university')?.value || '');
+                    fd.append('year_of_study', document.getElementById('year_of_study')?.value || '');
+                    fd.append('national_id_image', fileInput.files[0]);
+
+                    const res = await fetch("{{ route('signup.complete') }}", {
+                        method: 'POST',
+                        body: fd
+                    });
+                    const json = await res.json();
+                    if(res.ok && json.success){
+                        // go to verification step or dashboard
+                        // If signup complete, usually redirect to dashboard
+                        window.location = json.redirect || "{{ route('dashboard') }}";
+                    } else if(json.errors){ alert(Object.values(json.errors)[0][0]); }
+                    else { alert(json.error || 'Failed to create account'); }
+                } else {
+                    const data = {
+                        password: pw,
+                        password_confirmation: pwc,
+                        gender: document.getElementById('gender').value,
+                        date_of_birth: document.getElementById('date_of_birth').value,
+                        university: document.getElementById('university')?.value,
+                        year_of_study: document.getElementById('year_of_study')?.value
+                    };
+
+                    const res = await fetch("{{ route('signup.complete') }}", {
+                        method: 'POST', headers: { 'X-CSRF-TOKEN': document.querySelector('input[name="_token"]').value, 'Content-Type':'application/json' },
+                        body: JSON.stringify(data)
+                    });
+                    const json = await res.json();
+                    if(res.ok && json.success){ window.location = json.redirect || "{{ route('dashboard') }}"; }
+                    else if(json.errors){ alert(Object.values(json.errors)[0][0]); }
+                    else { alert(json.error || 'Failed to create account'); }
+                }
+            }catch(e){ alert('Network error'); }
+            completeBtn.disabled = false; 
+            if(completeBtn.innerHTML.includes('Creating')) completeBtn.innerHTML = 'Complete Signup <i class="fas fa-check-circle ml-2"></i>';
+        });
+    </script>
+</body>
+</html>

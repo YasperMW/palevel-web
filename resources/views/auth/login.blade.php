@@ -102,8 +102,12 @@
                                 <i class="fas fa-lock text-white/60"></i>
                             </div>
                             <input id="password" name="password" type="password" autocomplete="current-password" required
-                                   class="pl-10 w-full px-4 py-3 bg-white/20 border border-white/30 rounded-lg text-white placeholder-white/60 focus:outline-none focus:ring-2 focus:ring-white/50 focus:border-transparent transition-all"
+                                   class="pl-10 pr-10 w-full px-4 py-3 bg-white/20 border border-white/30 rounded-lg text-white placeholder-white/60 focus:outline-none focus:ring-2 focus:ring-white/50 focus:border-transparent transition-all"
                                    placeholder="Enter your password">
+                            <button type="button" id="togglePassword" 
+                                    class="absolute inset-y-0 right-0 pr-3 flex items-center text-white/60 hover:text-white transition-colors">
+                                <i id="eyeIcon" class="fas fa-eye"></i>
+                            </button>
                         </div>
                     </div>
 
@@ -121,7 +125,7 @@
                     @endif
 
                     @if(session('error'))
-                        <div class="bg-red-500/20 border border-red-400/50 text-white px-4 py-3 rounded-lg">
+                        <div class="bg-red-500/20 border border-red-400/50 text-white px-4 py-3 rounded-lg" id="sessionError">
                             <div class="flex items-center">
                                 <i class="fas fa-exclamation-triangle mr-2"></i>
                                 <p class="text-sm">{{ session('error') }}</p>
@@ -129,17 +133,17 @@
                         </div>
                     @endif
 
-                    <div class="flex items-center justify-between">
+                    <!-- Google Sign-In Error Container (hidden by default) -->
+                    <div id="googleError" class="bg-red-500/20 border border-red-400/50 text-white px-4 py-3 rounded-lg hidden">
                         <div class="flex items-center">
-                            <input id="remember-me" name="remember-me" type="checkbox" 
-                                   class="h-4 w-4 bg-white/20 border-white/30 rounded focus:ring-white/50 focus:ring-2 text-teal-600">
-                            <label for="remember-me" class="ml-2 block text-sm text-white/80">
-                                Remember me
-                            </label>
+                            <i class="fas fa-exclamation-triangle mr-2"></i>
+                            <p class="text-sm" id="googleErrorMessage"></p>
                         </div>
+                    </div>
 
+                    <div class="flex items-center justify-between">
                         <div class="text-sm">
-                            <a href="#" class="text-white/80 hover:text-white transition-colors">
+                            <a href="{{ route('password.request') }}" class="text-white/80 hover:text-white transition-colors">
                                 Forgot your password?
                             </a>
                         </div>
@@ -165,29 +169,336 @@
                         Back to Home
                     </a>
                 </div>
+
+                <div class="mt-6 text-center">
+                    <p class="text-white/80">
+                        Don't have an account? 
+                        <a href="{{ route('register.choice') }}" class="text-white font-semibold hover:underline">Sign up</a>
+                    </p>
+                </div>
+
+                <!-- Google Sign In -->
+                <div class="mt-6">
+                    <div class="relative">
+                        <div class="absolute inset-0 flex items-center">
+                            <div class="w-full border-t border-white/20"></div>
+                        </div>
+                        <div class="relative flex justify-center text-sm">
+                            <span class="px-2 bg-transparent text-white/80">Or continue with</span>
+                        </div>
+                    </div>
+
+                    <div class="mt-6">
+                        <button type="button" id="googleSignInButton" onclick="signInWithGoogle()" 
+                                class="w-full flex items-center justify-center px-4 py-3 bg-white text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-teal-500 transition-all shadow-lg font-semibold relative">
+                            <span id="googleButtonContent" class="flex items-center">
+                                <img src="https://www.svgrepo.com/show/475656/google-color.svg" class="h-5 w-5 mr-2" alt="Google">
+                                Sign in with Google
+                            </span>
+                            <span id="googleButtonSpinner" class="hidden flex items-center">
+                                <i class="fas fa-spinner fa-spin mr-2"></i>
+                                Signing in with Google...
+                            </span>
+                        </button>
+                    </div>
+                </div>
             </div>
         </div>
     </main>
     </div>
 
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
     <script>
-        // Add focus effects to inputs
-        document.querySelectorAll('input').forEach(input => {
-            input.addEventListener('focus', function() {
-                this.parentElement.classList.add('scale-105');
-            });
-            
-            input.addEventListener('blur', function() {
-                this.parentElement.classList.remove('scale-105');
-            });
-        });
+        // Firebase configuration - check if values are set
+        const firebaseConfig = {
+            apiKey: "{{ config('services.firebase.api_key') ?: 'demo-api-key' }}",
+            authDomain: "{{ config('services.firebase.auth_domain') ?: 'demo-project.firebaseapp.com' }}",
+            projectId: "{{ config('services.firebase.project_id') ?: 'demo-project' }}",
+            storageBucket: "{{ config('services.firebase.storage_bucket') ?: 'demo-project.appspot.com' }}",
+            messagingSenderId: "{{ config('services.firebase.messaging_sender_id') ?: '123456789' }}",
+            appId: "{{ config('services.firebase.app_id') ?: '1:123456789:web:abcdef123456' }}"
+        };
 
+        // Initialize Firebase
+        if (!firebase.apps.length) {
+            // Check if using demo values
+            if ("{{ config('services.firebase.api_key') }}" === "") {
+                console.warn('Firebase is not configured. Please add FIREBASE_* variables to your .env file');
+                // Disable Google Sign-In button if not configured
+                const googleButton = document.querySelector('button[onclick="signInWithGoogle()"]');
+                if (googleButton) {
+                    googleButton.disabled = true;
+                    googleButton.textContent = 'Google Sign-In Not Configured';
+                    googleButton.classList.add('opacity-50', 'cursor-not-allowed');
+                }
+            }
+            firebase.initializeApp(firebaseConfig);
+        }
+
+        // Function to map backend error messages to user-friendly messages
+        function getGoogleErrorMessage(errorMessage) {
+            // Map specific backend errors to user-friendly messages
+            const errorMappings = {
+                'This email is already registered with a regular account. Please use your password to login instead of OAuth.':
+                    'Email already in use. Sign in with your password instead',
+                'Invalid Firebase ID token':
+                    'Invalid authentication. Please try signing in again',
+                'Expired Firebase ID token':
+                    'Session expired. Please try signing in again',
+                'Revoked Firebase ID token':
+                    'Authentication revoked. Please try signing in again',
+                'Firebase token does not contain an email address':
+                    'Invalid account. Please try again or use a different account',
+                'Token verification failed':
+                    'Authentication failed. Please try again',
+                'Firebase authentication failed:':
+                    'Authentication failed. Please try again'
+            };
+
+            // Check for exact matches first
+            if (errorMappings[errorMessage]) {
+                return errorMappings[errorMessage];
+            }
+
+            // Check for partial matches
+            for (const [backendError, userMessage] of Object.entries(errorMappings)) {
+                if (errorMessage.includes(backendError) || backendError.includes(errorMessage)) {
+                    return userMessage;
+                }
+            }
+
+            // Default fallback for any Firebase-related errors
+            if (errorMessage.toLowerCase().includes('firebase') || 
+                errorMessage.toLowerCase().includes('token') ||
+                errorMessage.toLowerCase().includes('authentication')) {
+                return 'Google sign-in failed. Please try again';
+            }
+
+            // Return original message if no mapping found
+            return errorMessage;
+        }
+
+        function signInWithGoogle() {
+            const button = document.getElementById('googleSignInButton');
+            const buttonContent = document.getElementById('googleButtonContent');
+            const buttonSpinner = document.getElementById('googleButtonSpinner');
+            
+            // Show loading state immediately
+            button.disabled = true;
+            button.classList.add('opacity-75', 'cursor-not-allowed');
+            buttonContent.classList.add('hidden');
+            buttonSpinner.classList.remove('hidden');
+            
+            const provider = new firebase.auth.GoogleAuthProvider();
+            
+            firebase.auth().signInWithPopup(provider)
+                .then((result) => {
+                    // Get user details
+                    const user = result.user;
+                    return user.getIdToken().then(idToken => {
+                        return {
+                            idToken: idToken,
+                            email: user.email,
+                            displayName: user.displayName,
+                            photoURL: user.photoURL
+                        };
+                    });
+                })
+                .then((authData) => {
+                    return fetch('{{ route("auth.google.callback") }}', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                        },
+                        body: JSON.stringify({ 
+                            id_token: authData.idToken,
+                            email: authData.email,
+                            display_name: authData.displayName,
+                            photo_url: authData.photoURL
+                        })
+                    });
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        if (data.needs_role_selection) {
+                            // Show role selection modal
+                            showRoleSelectionModal();
+                        } else {
+                            // Success animation before redirect
+                            button.classList.remove('opacity-75', 'cursor-not-allowed');
+                            button.classList.add('bg-green-500', 'text-white');
+                            buttonContent.classList.remove('hidden');
+                            buttonContent.innerHTML = '<i class="fas fa-check mr-2"></i>Success!';
+                            buttonSpinner.classList.add('hidden');
+                            
+                            setTimeout(() => {
+                                window.location.href = data.redirect;
+                            }, 1000);
+                        }
+                    } else {
+                        // Error state - show error in the error container
+                        button.classList.remove('opacity-75', 'cursor-not-allowed');
+                        button.classList.add('bg-red-500', 'text-white');
+                        buttonContent.classList.remove('hidden');
+                        buttonContent.innerHTML = '<i class="fas fa-exclamation-triangle mr-2"></i>Failed';
+                        buttonSpinner.classList.add('hidden');
+                        
+                        // Show error message in the error container
+                        const googleError = document.getElementById('googleError');
+                        const googleErrorMessage = document.getElementById('googleErrorMessage');
+                        if (googleError && googleErrorMessage) {
+                            const userFriendlyMessage = getGoogleErrorMessage(data.error || 'Unknown error occurred');
+                            googleErrorMessage.textContent = userFriendlyMessage;
+                            googleError.classList.remove('hidden');
+                        }
+                        
+                        // Reset button after 3 seconds
+                        setTimeout(() => {
+                            button.classList.remove('bg-red-500', 'text-white');
+                            button.disabled = false;
+                            buttonContent.classList.remove('hidden');
+                            buttonContent.innerHTML = '<img src="https://www.svgrepo.com/show/475656/google-color.svg" class="h-5 w-5 mr-2" alt="Google">Sign in with Google';
+                            buttonSpinner.classList.add('hidden');
+                            
+                            // Hide error after 5 seconds
+                            setTimeout(() => {
+                                if (googleError) {
+                                    googleError.classList.add('hidden');
+                                }
+                            }, 5000);
+                        }, 3000);
+                    }
+                })
+                .catch((error) => {
+                    console.error('Error:', error);
+                    
+                    // Error state - show error in the error container
+                    button.classList.remove('opacity-75', 'cursor-not-allowed');
+                    button.classList.add('bg-red-500', 'text-white');
+                    buttonContent.classList.remove('hidden');
+                    buttonContent.innerHTML = '<i class="fas fa-exclamation-triangle mr-2"></i>Error';
+                    buttonSpinner.classList.add('hidden');
+                    
+                    // Show error message in the error container
+                    const googleError = document.getElementById('googleError');
+                    const googleErrorMessage = document.getElementById('googleErrorMessage');
+                    if (googleError && googleErrorMessage) {
+                        // Try to extract error message from the error object
+                        let errorMessage = 'Google Sign-In failed. Please try again.';
+                        if (error.message) {
+                            errorMessage = getGoogleErrorMessage(error.message);
+                        } else if (typeof error === 'string') {
+                            errorMessage = getGoogleErrorMessage(error);
+                        }
+                        googleErrorMessage.textContent = errorMessage;
+                        googleError.classList.remove('hidden');
+                    }
+                    
+                    // Reset button after 3 seconds
+                    setTimeout(() => {
+                        button.classList.remove('bg-red-500', 'text-white');
+                        button.disabled = false;
+                        buttonContent.classList.remove('hidden');
+                        buttonContent.innerHTML = '<img src="https://www.svgrepo.com/show/475656/google-color.svg" class="h-5 w-5 mr-2" alt="Google">Sign in with Google';
+                        buttonSpinner.classList.add('hidden');
+                        
+                        // Hide error after 5 seconds
+                        setTimeout(() => {
+                            if (googleError) {
+                                googleError.classList.add('hidden');
+                            }
+                        }, 5000);
+                    }, 3000);
+                });
+        }
+
+        function showRoleSelectionModal() {
+            // Create modal overlay
+            const modalOverlay = document.createElement('div');
+            modalOverlay.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50';
+            modalOverlay.id = 'roleSelectionModal';
+            
+            // Create modal content
+            const modalContent = document.createElement('div');
+            modalContent.className = 'bg-white rounded-lg p-8 max-w-md w-full mx-4';
+            modalContent.innerHTML = `
+                <h3 class="text-xl font-bold text-gray-800 mb-4">Select Your Role</h3>
+                <p class="text-gray-600 mb-6">Please select your role to continue with registration:</p>
+                <div class="space-y-3">
+                    <button onclick="selectRole('tenant')" class="w-full bg-teal-600 hover:bg-teal-700 text-white font-medium py-3 px-4 rounded-lg transition-colors">
+                        <i class="fas fa-graduation-cap mr-2"></i>
+                        Student
+                    </button>
+                    <button onclick="selectRole('landlord')" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-4 rounded-lg transition-colors">
+                        <i class="fas fa-home mr-2"></i>
+                        Landlord
+                    </button>
+                    <button onclick="closeRoleSelectionModal()" class="w-full bg-gray-300 hover:bg-gray-400 text-gray-700 font-medium py-3 px-4 rounded-lg transition-colors">
+                        Cancel
+                    </button>
+                </div>
+            `;
+            
+            modalOverlay.appendChild(modalContent);
+            document.body.appendChild(modalOverlay);
+            
+            // Close modal when clicking overlay
+            modalOverlay.addEventListener('click', function(e) {
+                if (e.target === modalOverlay) {
+                    closeRoleSelectionModal();
+                }
+            });
+        }
+
+        function selectRole(role) {
+            closeRoleSelectionModal();
+            // Redirect to OAuth completion pages instead of regular personal info
+            if (role === 'tenant') {
+                window.location.href = '{{ route("signup.oauth.student") }}';
+            } else if (role === 'landlord') {
+                window.location.href = '{{ route("signup.oauth.landlord") }}';
+            }
+        }
+
+        function closeRoleSelectionModal() {
+            const modal = document.getElementById('roleSelectionModal');
+            if (modal) {
+                modal.remove();
+            }
+        }
+    </script>
+
+    <script>
         // Handle login form submission with loading state
         document.addEventListener('DOMContentLoaded', function() {
             const loginForm = document.querySelector('form');
             const loginButton = document.getElementById('loginButton');
             const loginButtonText = document.getElementById('loginButtonText');
             const loginButtonSpinner = document.getElementById('loginButtonSpinner');
+
+            // Password visibility toggle
+            const togglePassword = document.getElementById('togglePassword');
+            const passwordInput = document.getElementById('password');
+            const eyeIcon = document.getElementById('eyeIcon');
+
+            if (togglePassword && passwordInput && eyeIcon) {
+                togglePassword.addEventListener('click', function() {
+                    const type = passwordInput.getAttribute('type') === 'password' ? 'text' : 'password';
+                    passwordInput.setAttribute('type', type);
+                    
+                    // Toggle eye icon
+                    if (type === 'password') {
+                        eyeIcon.classList.remove('fa-eye-slash');
+                        eyeIcon.classList.add('fa-eye');
+                    } else {
+                        eyeIcon.classList.remove('fa-eye');
+                        eyeIcon.classList.add('fa-eye-slash');
+                    }
+                });
+            }
 
             if (loginForm) {
                 loginForm.addEventListener('submit', function(e) {

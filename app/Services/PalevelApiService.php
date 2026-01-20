@@ -76,11 +76,68 @@ class PalevelApiService
         ]);
     }
 
+    public function sendOtp(string $email, string $firstName, string $lastName, string $phone, string $userType)
+    {
+        return $this->makeRequest('POST', '/send-otp/', [
+            'email' => $email,
+            'first_name' => $firstName,
+            'last_name' => $lastName,
+            'phone_number' => $phone,
+            'user_type' => $userType
+        ]);
+    }
+
+    public function verifyOtp(string $email, string $code)
+    {
+        return $this->makeRequest('POST', '/verify-otp/', [
+            'email' => $email,
+            'otp' => $code
+        ]);
+    }
+
+    public function createUserWithId(array $userData, $nationalIdImage = null)
+    {
+        if ($nationalIdImage) {
+            // Use multipart request for file upload
+            $multipartData = [];
+            
+            foreach ($userData as $key => $value) {
+                $multipartData[] = [
+                    'name' => $key,
+                    'contents' => $value
+                ];
+            }
+            
+            $multipartData[] = [
+                'name' => 'national_id_image',
+                'contents' => fopen($nationalIdImage->getPathname(), 'r'),
+                'filename' => $nationalIdImage->getClientOriginalName()
+            ];
+            
+            return $this->makeMultipartRequest('POST', '/create_user_with_id/', $multipartData);
+        }
+        
+        return $this->makeRequest('POST', '/create_user_with_id/', $userData);
+    }
+
     public function verifyToken(string $token)
     {
         return $this->makeRequest('POST', '/verify_token/', [
             'token' => $token
         ]);
+    }
+
+    public function googleAuthenticate(array $data)
+    {
+        // Construct payload for Python backend /auth/firebase/signin
+        $payload = [
+            'id_token' => $data['id_token'],
+            'email' => $data['email'],
+            'display_name' => $data['display_name'] ?? null,
+            'photo_url' => $data['photo_url'] ?? null
+        ];
+        
+        return $this->makeRequest('POST', '/auth/firebase/signin', $payload);
     }
 
     public function createUser(array $userData)
@@ -160,7 +217,44 @@ class PalevelApiService
         }
     }
 
-    public function getUserProfile(string $email = null, string $userId = null)
+    public function completeRoleSelection(array $data, string $token)
+    {
+        // Check if there's a file upload (for landlord ID document)
+        if (isset($data['national_id_image']) && $data['national_id_image'] instanceof \Illuminate\Http\UploadedFile) {
+            $file = $data['national_id_image'];
+            
+            // Prepare multipart data
+            $multipartData = [];
+            
+            // Add form fields
+            foreach ($data as $key => $value) {
+                if ($key !== 'national_id_image') {
+                    $multipartData[] = [
+                        'name' => $key,
+                        'contents' => $value
+                    ];
+                }
+            }
+            
+            // Add file
+            $multipartData[] = [
+                'name' => 'national_id_image',
+                'contents' => fopen($file->getPathname(), 'r'),
+                'filename' => $file->getClientOriginalName()
+            ];
+            
+            return $this->makeMultipartRequest('POST', '/auth/role-selection-with-id', $multipartData, [
+                'Authorization' => "Bearer {$token}"
+            ]); 
+        }
+        
+        // Regular JSON request
+        return $this->makeRequest('POST', '/auth/role-selection', $data, [
+            'Authorization' => "Bearer {$token}"
+        ]);
+    }
+
+    public function getUserProfile(?string $email = null, ?string $userId = null)
     {
         $params = [];
         if ($email) $params['email'] = $email;

@@ -20,34 +20,11 @@ class AuthController extends Controller
     public function showLogin()
     {
         if (Session::has('palevel_token')) {
-            return redirect()->route('dashboard');
+            $user = Session::get('palevel_user');
+            return redirect($this->getDashboardRouteForUser($user));
         }
 
         return view('auth.login');
-    }
-
-    public function showRegisterChoice()
-    {
-        if (Session::has('palevel_user')) {
-            return redirect()->route('dashboard');
-        }
-        return view('auth.register-choice');
-    }
-
-    public function showStudentRegister()
-    {
-        if (Session::has('palevel_user')) {
-            return redirect()->route('dashboard');
-        }
-        return view('auth.register-student');
-    }
-
-    public function showLandlordRegister()
-    {
-        if (Session::has('palevel_user')) {
-            return redirect()->route('dashboard');
-        }
-        return view('auth.register-landlord');
     }
 
     public function login(Request $request)
@@ -157,5 +134,31 @@ class AuthController extends Controller
     {
         Session::forget(['palevel_token', 'palevel_user']);
         return redirect()->route('login')->with('success', 'Logged out successfully.');
+    }
+
+    /**
+     * Get appropriate dashboard route based on user role and permissions
+     */
+    private function getDashboardRouteForUser(?array $user): string
+    {
+        if (!$user) {
+            return route('dashboard');
+        }
+        
+        $userType = $user['user_type'] ?? 'tenant';
+        
+        switch ($userType) {
+            case 'admin':
+                return route('admin.dashboard');
+                
+            case 'landlord':
+                return route('landlord.dashboard');
+                
+            case 'tenant':
+                return route('tenant.dashboard');
+                
+            default:
+                return route('dashboard');
+        }
     }
 }
