@@ -39,12 +39,12 @@ function formatDate($dateString) {
             if (isset($hostel['media']) && is_array($hostel['media'])) {
                 foreach ($hostel['media'] as $media) {
                     if (isset($media['is_cover']) && $media['is_cover']) {
-                        $coverImage = $media['url'];
+                        $coverImage = \App\Helpers\MediaHelper::getMediaUrl($media['url']);
                         break;
                     }
                 }
                 if (!$coverImage && count($hostel['media']) > 0) {
-                    $coverImage = $hostel['media'][0]['url'];
+                    $coverImage = \App\Helpers\MediaHelper::getMediaUrl($hostel['media'][0]['url']);
                 }
             }
         @endphp
@@ -220,7 +220,7 @@ function formatDate($dateString) {
                                             foreach ($room['media'] as $media) {
                                                 if (isset($media['type']) && $media['type'] == 'video') {
                                                     $hasVideo = true;
-                                                    $videoUrl = $media['url'];
+                                                    $videoUrl = \App\Helpers\MediaHelper::getMediaUrl($media['url']);
                                                     break;
                                                 }
                                             }

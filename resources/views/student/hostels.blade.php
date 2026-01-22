@@ -67,7 +67,7 @@
                 <div class="bg-white shadow rounded-lg overflow-hidden hover:shadow-lg transition-shadow duration-200">
                     <!-- Hostel Image -->
                     @if(isset($hostel['cover_image_url']))
-                        <img src="{{ $hostel['cover_image_url'] }}" alt="{{ $hostel['name'] }}" 
+                        <img src="{{ \App\Helpers\MediaHelper::getMediaUrl($hostel['cover_image_url']) }}" alt="{{ $hostel['name'] }}" 
                              class="w-full h-48 object-cover">
                     @else
                         <div class="w-full h-48 bg-gray-200 flex items-center justify-center">

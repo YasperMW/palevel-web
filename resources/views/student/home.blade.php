@@ -166,12 +166,12 @@
                                         if (isset($hostel['media']) && is_array($hostel['media'])) {
                                             foreach ($hostel['media'] as $media) {
                                                 if (isset($media['is_cover']) && $media['is_cover']) {
-                                                    $coverImage = $media['url'];
+                                                    $coverImage = \App\Helpers\MediaHelper::getMediaUrl($media['url']);
                                                     break;
                                                 }
                                             }
                                             if (!$coverImage && count($hostel['media']) > 0) {
-                                                $coverImage = $hostel['media'][0]['url'];
+                                                $coverImage = \App\Helpers\MediaHelper::getMediaUrl($hostel['media'][0]['url']);
                                             }
                                         }
                                     @endphp
@@ -427,7 +427,14 @@ document.addEventListener('DOMContentLoaded', function() {
         if (hostel.media && Array.isArray(hostel.media)) {
             const coverImage = hostel.media.find(media => media.is_cover) || hostel.media[0];
             if (coverImage && coverImage.url) {
-                return `<img src="${coverImage.url}" alt="${hostel.name}" class="w-full h-48 object-cover">`;
+                let imageUrl = coverImage.url;
+                if (!imageUrl.startsWith('http')) {
+                    // Ensure base URL doesn't have trailing slash and path starts with slash
+                    const baseUrl = apiBaseUrl.replace(/\/$/, '');
+                    const path = imageUrl.startsWith('/') ? imageUrl : '/' + imageUrl;
+                    imageUrl = baseUrl + path;
+                }
+                return `<img src="${imageUrl}" alt="${hostel.name}" class="w-full h-48 object-cover">`;
             }
         }
         return `
