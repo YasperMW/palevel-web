@@ -250,7 +250,7 @@
                                             }
                                         @endphp
                                         @if($coverImage)
-                                            <img src="{{ $coverImage }}" alt="{{ $hostel['name'] }}" 
+                                            <img src="{{ \App\Helpers\MediaHelper::getMediaUrl($coverImage) }}" alt="{{ $hostel['name'] }}" 
                                                  class="w-full h-full object-cover">
                                         @else
                                             <div class="w-full h-full bg-white/20 flex items-center justify-center">
