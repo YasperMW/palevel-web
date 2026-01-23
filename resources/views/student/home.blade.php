@@ -163,14 +163,19 @@
                                 <div class="relative">
                                     @php
                                         $coverImage = null;
-                                        if (isset($hostel['media']) && is_array($hostel['media'])) {
+                                        if (isset($hostel['media']) && is_array($hostel['media']) && count($hostel['media']) > 0) {
                                             foreach ($hostel['media'] as $media) {
-                                                if (isset($media['is_cover']) && $media['is_cover']) {
+                                                // Check for is_cover flag (loose check for true/1)
+                                                $isCover = isset($media['is_cover']) && filter_var($media['is_cover'], FILTER_VALIDATE_BOOLEAN);
+                                                
+                                                if ($isCover) {
                                                     $coverImage = \App\Helpers\MediaHelper::getMediaUrl($media['url']);
                                                     break;
                                                 }
                                             }
-                                            if (!$coverImage && count($hostel['media']) > 0) {
+                                            
+                                            // Fallback: If no image is marked as cover (e.g. single image), use the first one
+                                            if (!$coverImage) {
                                                 $coverImage = \App\Helpers\MediaHelper::getMediaUrl($hostel['media'][0]['url']);
                                             }
                                         }

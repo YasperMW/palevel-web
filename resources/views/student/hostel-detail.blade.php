@@ -36,14 +36,19 @@ function formatDate($dateString) {
     <div class="relative h-96 bg-gradient-to-br from-teal-600 to-teal-800">
         @php
             $coverImage = null;
-            if (isset($hostel['media']) && is_array($hostel['media'])) {
+            if (isset($hostel['media']) && is_array($hostel['media']) && count($hostel['media']) > 0) {
                 foreach ($hostel['media'] as $media) {
-                    if (isset($media['is_cover']) && $media['is_cover']) {
+                    // Check for is_cover flag (loose check for true/1)
+                    $isCover = isset($media['is_cover']) && filter_var($media['is_cover'], FILTER_VALIDATE_BOOLEAN);
+                    
+                    if ($isCover) {
                         $coverImage = \App\Helpers\MediaHelper::getMediaUrl($media['url']);
                         break;
                     }
                 }
-                if (!$coverImage && count($hostel['media']) > 0) {
+                
+                // Fallback: If no image is marked as cover (e.g. single image), use the first one
+                if (!$coverImage) {
                     $coverImage = \App\Helpers\MediaHelper::getMediaUrl($hostel['media'][0]['url']);
                 }
             }
@@ -194,7 +199,7 @@ function formatDate($dateString) {
                                         @endphp
                                         
                                         @if($roomImage)
-                                            <img src="{{ $roomImage }}" alt="Room {{ $room['room_number'] ?? '' }}" 
+                                            <img src="{{ \App\Helpers\MediaHelper::getMediaUrl($roomImage) }}" alt="Room {{ $room['room_number'] ?? '' }}" 
                                                  class="w-full h-full object-cover">
                                         @else
                                             <div class="w-full h-full flex items-center justify-center">
@@ -234,7 +239,7 @@ function formatDate($dateString) {
                                                 class="absolute top-0 left-0 w-full h-full object-cover"
                                                 controls
                                                 preload="metadata"
-                                                poster="{{ $roomImage ?? 'https://images.unsplash.com/photo-1611892440504-42a792e24d32?w=400' }}">
+                                                poster="{{ \App\Helpers\MediaHelper::getMediaUrl($roomImage) ?? 'https://images.unsplash.com/photo-1611892440504-42a792e24d32?w=400' }}">
                                                 <source src="{{ $videoUrl }}" type="video/mp4">
                                                 <source src="{{ $videoUrl }}" type="video/webm">
                                                 Your browser does not support the video tag.

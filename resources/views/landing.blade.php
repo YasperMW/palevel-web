@@ -237,20 +237,25 @@
                                     <div class="relative h-48 w-full">
                                         @php
                                             $coverImage = null;
-                                            if (isset($hostel['media']) && is_array($hostel['media'])) {
+                                            if (isset($hostel['media']) && is_array($hostel['media']) && count($hostel['media']) > 0) {
                                                 foreach ($hostel['media'] as $media) {
-                                                    if (isset($media['is_cover']) && $media['is_cover']) {
-                                                        $coverImage = $media['url'];
+                                                    // Check for is_cover flag (loose check for true/1)
+                                                    $isCover = isset($media['is_cover']) && filter_var($media['is_cover'], FILTER_VALIDATE_BOOLEAN);
+                                                    
+                                                    if ($isCover) {
+                                                        $coverImage = \App\Helpers\MediaHelper::getMediaUrl($media['url']);
                                                         break;
                                                     }
                                                 }
-                                                if (!$coverImage && count($hostel['media']) > 0) {
-                                                    $coverImage = $hostel['media'][0]['url'];
+                                                
+                                                // Fallback: If no image is marked as cover (e.g. single image), use the first one
+                                                if (!$coverImage) {
+                                                    $coverImage = \App\Helpers\MediaHelper::getMediaUrl($hostel['media'][0]['url']);
                                                 }
                                             }
                                         @endphp
                                         @if($coverImage)
-                                            <img src="{{ \App\Helpers\MediaHelper::getMediaUrl($coverImage) }}" alt="{{ $hostel['name'] }}" 
+                                            <img src="{{ $coverImage }}" alt="{{ $hostel['name'] }}" 
                                                  class="w-full h-full object-cover">
                                         @else
                                             <div class="w-full h-full bg-white/20 flex items-center justify-center">
