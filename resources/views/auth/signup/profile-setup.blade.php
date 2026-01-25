@@ -6,7 +6,9 @@
     <title>Profile Setup - PaLevel</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="{{ asset('css/palevel-dialog.css') }}">
     <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+    <script src="{{ asset('js/palevel-dialog.js') }}" defer></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Anta&display=swap');
         
@@ -220,8 +222,8 @@
             const pw = document.getElementById('password').value;
             const pwc = document.getElementById('password_confirmation').value;
             const vPw = validatePassword(pw);
-            if(!vPw.ok){ alert(vPw.msg); return; }
-            if(pw !== pwc){ alert('Password confirmation does not match'); return; }
+            if(!vPw.ok){ PalevelDialog.error(vPw.msg); return; }
+            if(pw !== pwc){ PalevelDialog.error('Password confirmation does not match'); return; }
 
             // Build payload - use FormData if landlord file is present
             let useFormData = false;
@@ -255,8 +257,8 @@
                         // go to verification step or dashboard
                         // If signup complete, usually redirect to dashboard
                         window.location = json.redirect || "{{ route('dashboard') }}";
-                    } else if(json.errors){ alert(Object.values(json.errors)[0][0]); }
-                    else { alert(json.error || 'Failed to create account'); }
+                    } else if(json.errors){ PalevelDialog.error(Object.values(json.errors)[0][0]); }
+                    else { PalevelDialog.error(json.error || 'Failed to create account'); }
                 } else {
                     const data = {
                         password: pw,
@@ -273,13 +275,15 @@
                     });
                     const json = await res.json();
                     if(res.ok && json.success){ window.location = json.redirect || "{{ route('dashboard') }}"; }
-                    else if(json.errors){ alert(Object.values(json.errors)[0][0]); }
-                    else { alert(json.error || 'Failed to create account'); }
+                    else if(json.errors){ PalevelDialog.error(Object.values(json.errors)[0][0]); }
+                    else { PalevelDialog.error(json.error || 'Failed to create account'); }
                 }
-            }catch(e){ alert('Network error'); }
+            }catch(e){ PalevelDialog.error('Network error'); }
             completeBtn.disabled = false; 
             if(completeBtn.innerHTML.includes('Creating')) completeBtn.innerHTML = 'Complete Signup <i class="fas fa-check-circle ml-2"></i>';
         });
     </script>
+
+    @include('partials.palevel-dialog')
 </body>
 </html>

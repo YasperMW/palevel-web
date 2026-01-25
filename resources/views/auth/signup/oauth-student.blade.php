@@ -6,7 +6,9 @@
     <title>Complete Profile - Student</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="{{ asset('css/palevel-dialog.css') }}">
     <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+    <script src="{{ asset('js/palevel-dialog.js') }}" defer></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Anta&display=swap');
         
@@ -194,17 +196,17 @@
             const phoneNumber = document.getElementById('phone_number').value;
             
             if(!university){
-                alert('Please select your university');
+                PalevelDialog.error('Please select your university');
                 return;
             }
             
             if(!yearOfStudy){
-                alert('Please select your year of study');
+                PalevelDialog.error('Please select your year of study');
                 return;
             }
             
             if(!phoneNumber || phoneNumber.trim().length < 9){
-                alert('Please enter a valid phone number');
+                PalevelDialog.error('Please enter a valid phone number');
                 return;
             }
 
@@ -235,18 +237,20 @@
                     window.location = json.redirect || "{{ route('tenant.dashboard') }}"; 
                 }
                 else if(json.errors){ 
-                    alert(Object.values(json.errors)[0][0]); 
+                    PalevelDialog.error(Object.values(json.errors)[0][0]); 
                 }
                 else { 
-                    alert(json.error || 'Failed to complete setup'); 
+                    PalevelDialog.error(json.error || 'Failed to complete setup'); 
                 }
             }catch(e){ 
-                alert('Network error'); 
+                PalevelDialog.error('Network error'); 
             }
             
             completeBtn.disabled = false; 
             if(completeBtn.innerHTML.includes('Completing')) completeBtn.innerHTML = 'Complete Setup <i class="fas fa-check-circle ml-2"></i>';
         });
     </script>
+
+    @include('partials.palevel-dialog')
 </body>
 </html>

@@ -200,6 +200,40 @@ class DashboardController extends Controller
             // Get tenant's bookings
             $bookings = $this->apiService->getMyBookings($token);
 
+            if (is_array($bookings)) {
+                $bookings = array_map(function ($booking) {
+                    if (!is_array($booking)) {
+                        return $booking;
+                    }
+
+                    if (empty($booking['hostel_name']) && isset($booking['room']['hostel']['name'])) {
+                        $booking['hostel_name'] = $booking['room']['hostel']['name'];
+                    }
+
+                    if (empty($booking['room_number']) && isset($booking['room']['room_number'])) {
+                        $booking['room_number'] = $booking['room']['room_number'];
+                    }
+
+                    if (empty($booking['room_type']) && isset($booking['room']['room_type'])) {
+                        $booking['room_type'] = $booking['room']['room_type'];
+                    }
+
+                    if (empty($booking['created_at']) && isset($booking['booking_date'])) {
+                        $booking['created_at'] = $booking['booking_date'];
+                    }
+
+                    if (empty($booking['start_date']) && isset($booking['check_in_date'])) {
+                        $booking['start_date'] = $booking['check_in_date'];
+                    }
+
+                    if (empty($booking['end_date']) && isset($booking['check_out_date'])) {
+                        $booking['end_date'] = $booking['check_out_date'];
+                    }
+
+                    return $booking;
+                }, $bookings);
+            }
+
             // Get notifications
             $notifications = $this->apiService->getNotifications($user['user_id'] ?? '', $token);
             $unreadNotifications = count(array_filter($notifications, fn($n) => !($n['is_read'] ?? false)));

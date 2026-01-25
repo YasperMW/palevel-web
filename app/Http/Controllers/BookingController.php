@@ -48,6 +48,183 @@ class BookingController extends Controller
         }
     }
 
+    public function showBookingDetail(string $bookingId)
+    {
+        try {
+            $token = Session::get('palevel_token');
+            if (!$token) {
+                return redirect()->route('login')->with('error', 'Please login to view booking details');
+            }
+
+            $booking = $this->apiService->getBooking($bookingId, $token);
+            if (!$booking) {
+                return redirect()->route('student.bookings')->with('error', 'Booking not found');
+            }
+
+            return view('student.booking-detail', compact('booking'));
+
+        } catch (\Exception $e) {
+            Log::error("Booking detail load failed: " . $e->getMessage());
+            return redirect()->route('student.bookings')->with('error', 'Failed to load booking details. Please try again.');
+        }
+    }
+
+    public function apiUpdateExtensionStatus(string $bookingId, Request $request)
+    {
+        try {
+            $request->validate([
+                'additional_months' => 'required|integer|min:1'
+            ]);
+
+            $token = Session::get('palevel_token');
+            if (!$token) {
+                return response()->json(['success' => false, 'message' => 'User not authenticated'], 401);
+            }
+
+            $result = $this->apiService->updateExtensionStatus($bookingId, (int) $request->additional_months, $token);
+
+            return response()->json(['success' => true, 'data' => $result]);
+
+        } catch (\Exception $e) {
+            Log::error("API update extension status failed: " . $e->getMessage());
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+        }
+    }
+
+    public function apiExtensionPricing(string $bookingId, Request $request)
+    {
+        try {
+            $request->validate([
+                'additional_months' => 'required|integer|min:1'
+            ]);
+
+            $token = Session::get('palevel_token');
+            if (!$token) {
+                return response()->json(['success' => false, 'message' => 'User not authenticated'], 401);
+            }
+
+            $result = $this->apiService->getExtensionPricing($bookingId, (int) $request->additional_months, $token);
+
+            return response()->json(['success' => true, 'data' => $result]);
+
+        } catch (\Exception $e) {
+            Log::error("API extension pricing failed: " . $e->getMessage());
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+        }
+    }
+
+    public function apiInitiateExtensionPayment(Request $request)
+    {
+        try {
+            $request->validate([
+                'booking_id' => 'required|string',
+                'additional_months' => 'required|integer|min:1',
+                'email' => 'required|email',
+                'phone_number' => 'nullable|string',
+                'first_name' => 'nullable|string',
+                'last_name' => 'nullable|string',
+                'payment_method' => 'nullable|string'
+            ]);
+
+            $token = Session::get('palevel_token');
+            if (!$token) {
+                return response()->json(['success' => false, 'message' => 'User not authenticated'], 401);
+            }
+
+            $payload = $request->only([
+                'booking_id',
+                'additional_months',
+                'email',
+                'phone_number',
+                'first_name',
+                'last_name',
+                'payment_method'
+            ]);
+
+            $result = $this->apiService->initiateExtensionPayment($payload, $token);
+
+            return response()->json(['success' => true, 'data' => $result]);
+
+        } catch (\Exception $e) {
+            Log::error("API initiate extension payment failed: " . $e->getMessage());
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+        }
+    }
+
+    public function apiUpdateCompletePaymentStatus(string $bookingId, Request $request)
+    {
+        try {
+            $token = Session::get('palevel_token');
+            if (!$token) {
+                return response()->json(['success' => false, 'message' => 'User not authenticated'], 401);
+            }
+
+            $result = $this->apiService->updateCompletePaymentStatus($bookingId, $token);
+
+            return response()->json(['success' => true, 'data' => $result]);
+
+        } catch (\Exception $e) {
+            Log::error("API update complete payment status failed: " . $e->getMessage());
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+        }
+    }
+
+    public function apiCompletePaymentPricing(string $bookingId, Request $request)
+    {
+        try {
+            $token = Session::get('palevel_token');
+            if (!$token) {
+                return response()->json(['success' => false, 'message' => 'User not authenticated'], 401);
+            }
+
+            $result = $this->apiService->getCompletePaymentPricing($bookingId, $token);
+
+            return response()->json(['success' => true, 'data' => $result]);
+
+        } catch (\Exception $e) {
+            Log::error("API complete payment pricing failed: " . $e->getMessage());
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+        }
+    }
+
+    public function apiInitiateCompletePayment(Request $request)
+    {
+        try {
+            $request->validate([
+                'booking_id' => 'required|string',
+                'remaining_amount' => 'required|numeric|min:0',
+                'email' => 'required|email',
+                'phone_number' => 'nullable|string',
+                'first_name' => 'nullable|string',
+                'last_name' => 'nullable|string',
+                'payment_method' => 'nullable|string'
+            ]);
+
+            $token = Session::get('palevel_token');
+            if (!$token) {
+                return response()->json(['success' => false, 'message' => 'User not authenticated'], 401);
+            }
+
+            $payload = $request->only([
+                'booking_id',
+                'remaining_amount',
+                'email',
+                'phone_number',
+                'first_name',
+                'last_name',
+                'payment_method'
+            ]);
+
+            $result = $this->apiService->initiateCompletePayment($payload, $token);
+
+            return response()->json(['success' => true, 'data' => $result]);
+
+        } catch (\Exception $e) {
+            Log::error("API initiate complete payment failed: " . $e->getMessage());
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+        }
+    }
+
     public function store(Request $request)
     {
         $request->validate([

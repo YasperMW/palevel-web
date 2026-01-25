@@ -15,6 +15,8 @@
     </script>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="{{ asset('css/palevel-dialog.css') }}">
+    <script src="{{ asset('js/palevel-dialog.js') }}" defer></script>
     <style>
         /* Palevel Theme Colors */
         :root {
@@ -394,13 +396,13 @@
                 window.location.href = '/login';
             } else if (jqXHR.status === 403) {
                 // Forbidden - show error
-                alert('You do not have permission to perform this action');
+                PalevelDialog.error('You do not have permission to perform this action');
             } else if (jqXHR.status === 0) {
                 // Network error or timeout
-                alert('Unable to connect to the server. Please check your connection.');
+                PalevelDialog.error('Unable to connect to the server. Please check your connection.');
             } else if (jqXHR.status >= 500) {
                 // Server error
-                alert('Server error occurred. Please try again later.');
+                PalevelDialog.error('Server error occurred. Please try again later.');
             }
         });
 
@@ -408,7 +410,7 @@
         window.addEventListener('unhandledrejection', function(event) {
             if (event.reason && event.reason.message) {
                 if (event.reason.message.includes('fetch')) {
-                    alert('Network error. Please check your connection and try again.');
+                    PalevelDialog.error('Network error. Please check your connection and try again.');
                 }
             }
         });
@@ -444,6 +446,7 @@
         }
     </script>
     
+    @include('partials.palevel-dialog')
     @stack('scripts')
 </body>
 </html>

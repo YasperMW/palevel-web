@@ -270,8 +270,9 @@ function renderDisbursementsTable(data) {
 }
 
 // Process all uncompleted disbursements for all landlords
-function processAllUncompletedDisbursements() {
-    if (!confirm('Are you sure you want to process ALL uncompleted disbursements for all landlords?')) return;
+async function processAllUncompletedDisbursements() {
+    const ok = await PalevelDialog.confirm('Are you sure you want to process ALL uncompleted disbursements for all landlords?', 'Confirm');
+    if (!ok) return;
     const disbursementData = window.lastDisbursementData;
     if (!disbursementData) return;
     const disbursements = disbursementData.disbursements || [];
@@ -305,8 +306,9 @@ function processAllUncompletedDisbursements() {
         .catch(() => showErrorMessage('Failed to process all uncompleted disbursements.'));
 }
 // Authorize individual transaction
-function authorizeTransaction(bookingId, landlordId, platformFee, disbursementAmount) {
-    if (!confirm(`Are you sure you want to authorize disbursement of ${disbursementAmount.toFixed(2)} for this booking?`)) {
+async function authorizeTransaction(bookingId, landlordId, platformFee, disbursementAmount) {
+    const ok = await PalevelDialog.confirm(`Are you sure you want to authorize disbursement of ${disbursementAmount.toFixed(2)} for this booking?`, 'Confirm');
+    if (!ok) {
         return;
     }
 
@@ -359,8 +361,9 @@ function authorizeTransaction(bookingId, landlordId, platformFee, disbursementAm
 }
 
 // Authorize batch disbursement
-function authorizeBatchDisbursement(landlordId, totalAmount, totalBookings) {
-    if (!confirm(`Are you sure you want to authorize batch disbursement of ${totalAmount.toFixed(2)} for ${totalBookings} bookings?`)) {
+async function authorizeBatchDisbursement(landlordId, totalAmount, totalBookings) {
+    const ok = await PalevelDialog.confirm(`Are you sure you want to authorize batch disbursement of ${totalAmount.toFixed(2)} for ${totalBookings} bookings?`, 'Confirm');
+    if (!ok) {
         return;
     }
     

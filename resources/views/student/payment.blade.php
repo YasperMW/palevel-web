@@ -63,7 +63,7 @@
                                 id="paymentFrame"
                                 src="{{ $paymentUrl }}" 
                                 class="w-full h-full border-0"
-                                sandbox="allow-same-origin allow-scripts allow-popups allow-forms allow-top-navigation"
+                                sandbox="allow-same-origin allow-scripts allow-popups allow-forms"
                                 onload="onPaymentLoad()"
                                 onerror="onPaymentError()">
                             </iframe>
@@ -80,9 +80,7 @@
                                 Secure payment powered by PayChangu
                             </div>
                             <div class="flex space-x-3">
-                                <button onclick="checkPaymentStatus()" class="px-4 py-2 text-sm bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors">
-                                    Check Payment Status
-                                </button>
+                                <!-- Status button removed as per requirement -->
                             </div>
                         </div>
                     </div>
@@ -219,9 +217,12 @@
 </div>
 
 <script>
-let paymentStatusInterval = null;
+let paymentStatusTimeout = null;
 let verificationAttempts = 0;
 const maxVerificationAttempts = 20; // Maximum attempts before timeout
+let nextVerificationDelayMs = 2000;
+const maxVerificationDelayMs = 30000;
+const pageLoadedAt = Date.now();
 const bookingId = '{{ $booking['booking_id'] }}';
 const urlParams = new URLSearchParams(window.location.search);
 const paymentId = urlParams.get('paymentId') || (function() {
@@ -234,15 +235,28 @@ const paymentId = urlParams.get('paymentId') || (function() {
 const verificationReference = paymentId || bookingId;
 
 let isPaymentCompleted = false;
+let isPaymentVerified = false;
 
-// Start payment status monitoring when page loads
+// Only setup iframe monitoring when page loads
 document.addEventListener('DOMContentLoaded', function() {
-    startPaymentStatusMonitoring();
     setupIframeMonitoring();
+    // Start verification polling in the background so we don't depend on iframe events
+    // (PayChangu may not postMessage and iframe URL may remain cross-origin).
+    startBackgroundVerification();
 });
+
+function startBackgroundVerification() {
+    // Give the user time to complete payment before we begin polling
+    setTimeout(() => {
+        if (!isPaymentVerified) {
+            verifyPaymentStatus();
+        }
+    }, 45000);
+}
 
 function setupIframeMonitoring() {
     const iframe = document.getElementById('paymentFrame');
+    let iframeLoadCount = 0;
     
     // Monitor iframe messages for payment completion
     window.addEventListener('message', function(event) {
@@ -259,17 +273,30 @@ function setupIframeMonitoring() {
     
     // Monitor iframe URL changes
     iframe.addEventListener('load', function() {
+        iframeLoadCount++;
         try {
             const iframeUrl = iframe.contentWindow.location.href;
             console.log('Iframe URL:', iframeUrl);
             
-            // Check if URL indicates payment completion
-            if (iframeUrl.includes('success') || iframeUrl.includes('completed') || iframeUrl.includes('thank-you')) {
+            // If we can access the URL and it's on our origin, it means payment is done/returned
+            // We assume any return to our domain indicates the payment flow has finished (success or cancel)
+            // The verification step will determine the actual status
+            if (iframeUrl && iframeUrl.startsWith(window.location.origin)) {
+                console.log('Returned to origin, payment likely complete');
                 handlePaymentCompletion();
             }
         } catch (e) {
-            // Cross-origin error, ignore
+            // Cross-origin error, ignore - likely still on payment gateway
             console.log('Cannot access iframe URL (cross-origin)');
+
+            // If the iframe has navigated again after some time, it's likely the gateway
+            // completed and moved to a success/redirect page. Trigger verification.
+            if (!isPaymentCompleted && !isPaymentVerified) {
+                const elapsed = Date.now() - pageLoadedAt;
+                if (iframeLoadCount >= 2 && elapsed >= 20000) {
+                    handlePaymentCompletion();
+                }
+            }
         }
     });
 }
@@ -287,9 +314,8 @@ function handlePaymentCompletion() {
     // Show enhanced loading with verification states
     showVerificationLoading();
     
-    // Increase verification frequency during completion
-    clearInterval(paymentStatusInterval);
-    paymentStatusInterval = setInterval(verifyPaymentStatus, 2000); // Check every 2 seconds
+    // Start verification immediately
+    verifyPaymentStatus();
 }
 
 function showVerificationLoading() {
@@ -310,7 +336,7 @@ function showVerificationLoading() {
         progress += 5;
         progressBar.style.width = Math.min(progress, 90) + '%';
         
-        if (progress >= 90) {
+        if (progress >= 90 || isPaymentVerified) {
             clearInterval(progressInterval);
         }
     }, 200);
@@ -335,21 +361,16 @@ function refreshPayment() {
     }
 }
 
-function startPaymentStatusMonitoring() {
-    // Check payment status every 5 seconds
-    paymentStatusInterval = setInterval(verifyPaymentStatus, 5000);
-}
-
 async function verifyPaymentStatus() {
+    if (isPaymentVerified) return;
+    
     verificationAttempts++;
+    updateVerificationProgress();
     
     try {
-        // Update progress and message
-        updateVerificationProgress();
-        
-        const response = await fetch(`${API_BASE_URL}/payments/verify/?reference=${verificationReference}`, {
+        const response = await fetch(`/api/payments/verify?reference=${encodeURIComponent(verificationReference)}`, {
             headers: {
-                'Authorization': `Bearer ${AUTH_TOKEN}`
+                'Accept': 'application/json'
             }
         });
         
@@ -359,14 +380,23 @@ async function verifyPaymentStatus() {
         if (result.success || (result.status === 'success' && result.data?.status === 'completed') || result.status === 'completed') {
             // Payment successful
             handlePaymentSuccess();
-        } else if (verificationAttempts >= maxVerificationAttempts) {
-            // Timeout reached
-            handleVerificationTimeout();
+        } else {
+            // If not successful yet, schedule next check if within limits
+            if (verificationAttempts < maxVerificationAttempts) {
+                nextVerificationDelayMs = Math.min(Math.floor(nextVerificationDelayMs * 1.5), maxVerificationDelayMs);
+                paymentStatusTimeout = setTimeout(verifyPaymentStatus, nextVerificationDelayMs);
+            } else {
+                handleVerificationTimeout();
+            }
         }
     } catch (error) {
         console.log('Payment status check failed:', error);
         
-        if (verificationAttempts >= maxVerificationAttempts) {
+        // Retry on error if within limits
+        if (verificationAttempts < maxVerificationAttempts) {
+            nextVerificationDelayMs = Math.min(Math.floor(nextVerificationDelayMs * 2), maxVerificationDelayMs);
+            paymentStatusTimeout = setTimeout(verifyPaymentStatus, nextVerificationDelayMs);
+        } else {
             handleVerificationTimeout();
         }
     }
@@ -392,7 +422,12 @@ function updateVerificationProgress() {
 }
 
 function handlePaymentSuccess() {
-    stopPaymentStatusMonitoring();
+    isPaymentVerified = true;
+    nextVerificationDelayMs = 2000;
+    if (paymentStatusTimeout) {
+        clearTimeout(paymentStatusTimeout);
+        paymentStatusTimeout = null;
+    }
     
     // Update UI to show success
     const title = document.getElementById('loadingTitle');
@@ -419,7 +454,18 @@ function handlePaymentSuccess() {
 }
 
 function handleVerificationTimeout() {
-    stopPaymentStatusMonitoring();
+    if (paymentStatusTimeout) {
+        clearTimeout(paymentStatusTimeout);
+        paymentStatusTimeout = null;
+    }
+
+    // If we're polling in the background while the user is still in the payment flow,
+    // don't interrupt them with timeout UI. Keep retrying quietly.
+    if (!isPaymentCompleted) {
+        verificationAttempts = 0;
+        paymentStatusTimeout = setTimeout(verifyPaymentStatus, 5000);
+        return;
+    }
     
     // Update UI to show error
     const title = document.getElementById('loadingTitle');
@@ -435,41 +481,15 @@ function handleVerificationTimeout() {
     // Show manual check option
     setTimeout(() => {
         hideLoading();
-        if (confirm('Payment verification is taking longer than expected. Would you like to check manually or try again?')) {
-            checkPaymentStatus();
-        }
+        PalevelDialog.confirm('Payment verification is taking longer than expected. Would you like to check manually or try again?', 'Confirm')
+            .then((ok) => {
+                if (!ok) return;
+                // Reset attempts and try again
+                verificationAttempts = 0;
+                showLoading('Checking payment status...');
+                verifyPaymentStatus();
+            });
     }, 2000);
-}
-
-function stopPaymentStatusMonitoring() {
-    if (paymentStatusInterval) {
-        clearInterval(paymentStatusInterval);
-        paymentStatusInterval = null;
-    }
-}
-
-async function checkPaymentStatus() {
-    showLoading('Checking payment status...');
-    
-    try {
-        const response = await fetch(`${API_BASE_URL}/payments/verify/?reference=${verificationReference}`, {
-            headers: {
-                'Authorization': `Bearer ${AUTH_TOKEN}`
-            }
-        });
-        
-        const result = await response.json();
-        
-        if (result.success || (result.status === 'success' && result.data?.status === 'completed') || result.status === 'completed') {
-            handlePaymentSuccess();
-        } else {
-            hideLoading();
-            alert('Payment not yet completed. Please complete the payment and try again.');
-        }
-    } catch (error) {
-        hideLoading();
-        alert('Error checking payment status: ' + error.message);
-    }
 }
 
 function showLoading(message = 'Processing...') {
@@ -503,12 +523,14 @@ function showSuccessNotification() {
 }
 
 function showError(message) {
-    alert(message);
+    PalevelDialog.error(message);
 }
 
-// Clean up interval when page unloads
+// Clean up timeout when page unloads
 window.addEventListener('beforeunload', function() {
-    stopPaymentStatusMonitoring();
+    if (paymentStatusTimeout) {
+        clearTimeout(paymentStatusTimeout);
+    }
 });
 </script>
 @endsection

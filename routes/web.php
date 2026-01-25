@@ -119,6 +119,7 @@ Route::prefix('landlord')->name('landlord.')->middleware(['auth.palevel:landlord
 Route::prefix('student')->name('student.')->middleware(['auth.palevel:tenant', 'user.profile'])->group(function () {
     Route::get('/home', [DashboardController::class, 'studentHome'])->name('home');
     Route::get('/bookings', [DashboardController::class, 'studentBookings'])->name('bookings');
+    Route::get('/bookings/{bookingId}', [BookingController::class, 'showBookingDetail'])->name('bookings.show');
     Route::get('/profile', [DashboardController::class, 'studentProfile'])->name('profile');
     Route::get('/payment/{bookingId}', [BookingController::class, 'showPayment'])->name('payment');
 });
@@ -145,6 +146,12 @@ Route::middleware('auth.palevel')->group(function () {
         Route::get('/user/bookings', [BookingController::class, 'apiUserBookings'])->name('api.user.bookings');
         Route::get('/user/gender', [BookingController::class, 'apiUserGender'])->name('api.user.gender');
         Route::get('/user/details', [BookingController::class, 'apiUserDetails'])->name('api.user.details');
+        Route::post('/bookings/{bookingId}/extension-status-update', [BookingController::class, 'apiUpdateExtensionStatus'])->name('api.bookings.extension-status-update');
+        Route::get('/bookings/{bookingId}/extension-pricing', [BookingController::class, 'apiExtensionPricing'])->name('api.bookings.extension-pricing');
+        Route::post('/payments/extend/initiate', [BookingController::class, 'apiInitiateExtensionPayment'])->name('api.payments.extend.initiate');
+        Route::post('/bookings/{bookingId}/complete-payment-status-update', [BookingController::class, 'apiUpdateCompletePaymentStatus'])->name('api.bookings.complete-payment-status-update');
+        Route::get('/bookings/{bookingId}/complete-payment-pricing', [BookingController::class, 'apiCompletePaymentPricing'])->name('api.bookings.complete-payment-pricing');
+        Route::post('/payments/complete/initiate', [BookingController::class, 'apiInitiateCompletePayment'])->name('api.payments.complete.initiate');
         Route::post('/payments/paychangu/initiate', [BookingController::class, 'apiInitiatePayment'])->name('api.payments.paychangu.initiate');
         Route::get('/payments/verify', [BookingController::class, 'apiVerifyPayment'])->name('api.payments.verify');
     });

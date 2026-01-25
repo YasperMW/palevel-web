@@ -759,7 +759,7 @@ function shareHostel() {
     } else {
         // Fallback - copy to clipboard
         navigator.clipboard.writeText(window.location.href);
-        alert('Link copied to clipboard!');
+        PalevelDialog.info('Link copied to clipboard!');
     }
 }
 
@@ -1255,12 +1255,8 @@ function showActiveBookingDialog(activeBooking) {
         const message = activeBooking.hostelName ? 
             `You already have an active confirmed booking at ${activeBooking.hostelName}${activeBooking.roomNumber ? ` (Room ${activeBooking.roomNumber})` : ''} until ${activeBooking.checkOutDate}. Do you want to continue and make another booking?` :
             `You already have an active confirmed booking until ${activeBooking.checkOutDate}. Do you want to continue and make another booking?`;
-        
-        if (confirm(message)) {
-            resolve(true);
-        } else {
-            resolve(false);
-        }
+
+        PalevelDialog.confirm(message, 'Confirm').then((ok) => resolve(!!ok));
     });
 }
 
@@ -1268,12 +1264,8 @@ function showActiveBookingDialog(activeBooking) {
 function showGenderMismatchDialog(genderInfo) {
     return new Promise((resolve) => {
         const message = `This room is reserved for ${genderInfo.roomGender} residents.\n\nYour profile is set to "${genderInfo.userGender}".\n\nDo you want to proceed anyway?`;
-        
-        if (confirm(message)) {
-            resolve(true);
-        } else {
-            resolve(false);
-        }
+
+        PalevelDialog.confirm(message, 'Confirm').then((ok) => resolve(!!ok));
     });
 }
 
@@ -1691,18 +1683,18 @@ async function verifyPaymentAndRedirect(paymentId) {
             sessionStorage.removeItem('pendingBooking');
             
             // Show success message
-            alert('Payment successful! Redirecting to your bookings...');
+            PalevelDialog.info('Payment successful! Redirecting to your bookings...');
             
             // Redirect to bookings page
             window.location.href = '/student/bookings';
         } else {
             // Payment not yet processed
             hideLoadingState();
-            alert('Payment not yet verified. Please complete the payment and try again.');
+            PalevelDialog.error('Payment not yet verified. Please complete the payment and try again.');
         }
     } catch (error) {
         hideLoadingState();
-        alert('Error verifying payment: ' + error.message);
+        PalevelDialog.error('Error verifying payment: ' + error.message);
     }
 }
 
@@ -1719,17 +1711,18 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         
         // Show payment verification prompt
-        const shouldVerify = confirm(
+        PalevelDialog.confirm(
             'You have a pending payment from a previous booking.\n\n' +
             `Booking ID: #${booking.bookingId}\n` +
-            'Would you like to verify this payment now?'
-        );
-        
-        if (shouldVerify) {
-            verifyPaymentAndRedirect(booking.paymentId || booking.bookingId);
-        } else {
-            sessionStorage.removeItem('pendingBooking');
-        }
+            'Would you like to verify this payment now?',
+            'Confirm'
+        ).then((shouldVerify) => {
+            if (shouldVerify) {
+                verifyPaymentAndRedirect(booking.paymentId || booking.bookingId);
+            } else {
+                sessionStorage.removeItem('pendingBooking');
+            }
+        });
     }
 });
 
@@ -1749,22 +1742,22 @@ function bookNow() {
 
 function scheduleTour() {
     // Open tour scheduling modal or redirect
-    alert('Tour scheduling feature coming soon!');
+    PalevelDialog.info('Tour scheduling feature coming soon!');
 }
 
 function addToFavorites() {
     // Add to favorites functionality
-    alert('Added to favorites!');
+    PalevelDialog.info('Added to favorites!');
 }
 
 function contactLandlord() {
     // Open contact form or redirect
-    alert('Contact feature coming soon!');
+    PalevelDialog.info('Contact feature coming soon!');
 }
 
 function showReviewForm() {
     // Open review form modal
-    alert('Review form coming soon!');
+    PalevelDialog.info('Review form coming soon!');
 }
 
 // Lazy loading functionality - disabled since data is now loaded server-side

@@ -133,12 +133,22 @@
                                     </div>
                                     
                                     <div class="flex flex-col space-y-2 ml-4">
-                                        <button class="px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 text-sm font-medium transition-colors duration-200">
-                                            View Details
-                                        </button>
-                                        @if($booking['status'] === 'pending')
-                                            <button class="px-4 py-2 border border-red-300 text-red-600 rounded-lg hover:bg-red-50 text-sm font-medium transition-colors duration-200">
-                                                Cancel Booking
+                                        <a href="{{ route('student.bookings.show', ['bookingId' => $booking['booking_id'] ?? '']) }}" onclick="return handleViewDetailsClick(event, this)" class="px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 text-sm font-medium transition-colors duration-200 inline-flex items-center justify-center">
+                                            <span class="view-details-label">View Details</span>
+                                            <span class="view-details-spinner hidden ml-2">
+                                                <svg class="w-4 h-4 animate-spin" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>
+                                                </svg>
+                                            </span>
+                                        </a>
+                                        @if(($booking['payment_type'] ?? '') === 'booking_fee')
+                                            <button onclick="openCompletePaymentModal('{{ $booking['booking_id'] ?? '' }}')" class="px-4 py-2 border border-teal-300 text-teal-700 rounded-lg hover:bg-teal-50 text-sm font-medium transition-colors duration-200">
+                                                Complete Payment
+                                            </button>
+                                        @elseif(($booking['payment_type'] ?? '') === 'full')
+                                            <button onclick="openExtendBookingModal('{{ $booking['booking_id'] ?? '' }}')" class="px-4 py-2 border border-blue-300 text-blue-700 rounded-lg hover:bg-blue-50 text-sm font-medium transition-colors duration-200">
+                                                Extend Booking
                                             </button>
                                         @endif
                                     </div>
@@ -165,4 +175,289 @@
         </div>
     </main>
 </div>
+
+<div id="extendBookingModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
+    <div class="bg-white rounded-xl shadow-2xl w-full max-w-md mx-4">
+        <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+            <h3 class="text-lg font-semibold text-gray-900">Extend Booking</h3>
+            <button type="button" onclick="closeExtendBookingModal()" class="text-gray-400 hover:text-gray-600">&times;</button>
+        </div>
+        <div class="p-6 space-y-4">
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Additional months</label>
+                <select id="extendMonths" class="w-full rounded-lg border-gray-300 focus:border-teal-500 focus:ring-teal-500" onchange="refreshExtensionPricing()">
+                    <option value="1">1 month</option>
+                    <option value="2">2 months</option>
+                </select>
+            </div>
+            <div class="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                <p class="text-sm text-gray-600">Total extension amount</p>
+                <p id="extendTotal" class="text-xl font-bold text-gray-900">MWK -</p>
+                <p id="extendMeta" class="text-xs text-gray-500 mt-1"></p>
+            </div>
+            <div class="flex space-x-3">
+                <button type="button" onclick="closeExtendBookingModal()" class="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50">
+                    Cancel
+                </button>
+                <button type="button" onclick="confirmExtendBooking()" class="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+                    Proceed to Payment
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="completePaymentModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
+    <div class="bg-white rounded-xl shadow-2xl w-full max-w-md mx-4">
+        <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+            <h3 class="text-lg font-semibold text-gray-900">Complete Payment</h3>
+            <button type="button" onclick="closeCompletePaymentModal()" class="text-gray-400 hover:text-gray-600">&times;</button>
+        </div>
+        <div class="p-6 space-y-4">
+            <div class="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                <p class="text-sm text-gray-600">Remaining amount</p>
+                <p id="completeRemaining" class="text-xl font-bold text-gray-900">MWK -</p>
+                <p id="completeMeta" class="text-xs text-gray-500 mt-1"></p>
+            </div>
+            <div class="flex space-x-3">
+                <button type="button" onclick="closeCompletePaymentModal()" class="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50">
+                    Cancel
+                </button>
+                <button type="button" onclick="confirmCompletePayment()" class="flex-1 px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700">
+                    Proceed to Payment
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+let activeBookingId = null;
+let cachedUserDetails = null;
+let cachedCompletePricing = null;
+
+function handleViewDetailsClick(event, el) {
+    try {
+        const label = el.querySelector('.view-details-label');
+        const spinner = el.querySelector('.view-details-spinner');
+
+        if (el.dataset.loading === '1') {
+            event.preventDefault();
+            return false;
+        }
+
+        el.dataset.loading = '1';
+        el.classList.add('opacity-75', 'pointer-events-none');
+        if (label) label.textContent = 'Loading...';
+        if (spinner) spinner.classList.remove('hidden');
+
+        // allow navigation
+        return true;
+    } catch (e) {
+        return true;
+    }
+}
+
+async function getUserDetails() {
+    if (cachedUserDetails) return cachedUserDetails;
+    const res = await fetch('/api/user/details', { headers: { 'Accept': 'application/json' } });
+    const json = await res.json();
+    if (!json.success) throw new Error(json.message || 'Failed to load user details');
+    cachedUserDetails = json.data;
+    return cachedUserDetails;
+}
+
+function csrfToken() {
+    return document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+}
+
+function openExtendBookingModal(bookingId) {
+    activeBookingId = bookingId;
+    document.getElementById('extendBookingModal').classList.remove('hidden');
+    refreshExtensionPricing();
+}
+
+function closeExtendBookingModal() {
+    document.getElementById('extendBookingModal').classList.add('hidden');
+    activeBookingId = null;
+}
+
+async function refreshExtensionPricing() {
+    if (!activeBookingId) return;
+    const months = parseInt(document.getElementById('extendMonths').value || '1', 10);
+    const totalEl = document.getElementById('extendTotal');
+    const metaEl = document.getElementById('extendMeta');
+    totalEl.textContent = 'MWK ...';
+    metaEl.textContent = '';
+
+    try {
+        const res = await fetch(`/api/bookings/${encodeURIComponent(activeBookingId)}/extension-pricing?additional_months=${months}`, {
+            headers: { 'Accept': 'application/json' }
+        });
+        const json = await res.json();
+        if (!json.success) throw new Error(json.message || 'Failed to fetch extension pricing');
+        const data = json.data || {};
+        const total = data.total_amount ?? data.total ?? null;
+        totalEl.textContent = total != null ? `MWK ${Number(total).toLocaleString()}` : 'MWK -';
+        const monthly = data.monthly_price ?? null;
+        const fee = data.platform_fee ?? null;
+        metaEl.textContent = [
+            monthly != null ? `Monthly: MWK ${Number(monthly).toLocaleString()}` : null,
+            fee != null ? `Platform fee: MWK ${Number(fee).toLocaleString()}` : null
+        ].filter(Boolean).join(' | ');
+    } catch (e) {
+        totalEl.textContent = 'MWK -';
+        metaEl.textContent = String(e.message || e);
+    }
+}
+
+async function confirmExtendBooking() {
+    if (!activeBookingId) return;
+    const bookingId = activeBookingId;
+    const months = parseInt(document.getElementById('extendMonths').value || '1', 10);
+    try {
+        const user = await getUserDetails();
+
+        const statusRes = await fetch(`/api/bookings/${encodeURIComponent(activeBookingId)}/extension-status-update`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+                'X-CSRF-TOKEN': csrfToken()
+            },
+            body: JSON.stringify({ additional_months: months })
+        });
+        const statusJson = await statusRes.json();
+        if (!statusJson.success) throw new Error(statusJson.message || 'Failed to update extension status');
+
+        const payRes = await fetch('/api/payments/extend/initiate', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+                'X-CSRF-TOKEN': csrfToken()
+            },
+            body: JSON.stringify({
+                booking_id: activeBookingId,
+                additional_months: months,
+                email: user.email,
+                phone_number: user.phone_number || user.phoneNumber || '',
+                first_name: user.first_name || user.firstName || '',
+                last_name: user.last_name || user.lastName || '',
+                payment_method: 'paychangu'
+            })
+        });
+        const payJson = await payRes.json();
+        if (!payJson.success) throw new Error(payJson.message || 'Failed to initiate extension payment');
+
+        const data = payJson.data || {};
+        const paymentUrl = data.payment_url;
+        const paymentId = data.tx_ref;
+
+        if (!paymentUrl) throw new Error('Payment URL not received');
+        closeExtendBookingModal();
+        window.location.href = `/student/payment/${encodeURIComponent(bookingId)}?paymentUrl=${encodeURIComponent(paymentUrl)}&paymentId=${encodeURIComponent(paymentId || '')}`;
+    } catch (e) {
+        PalevelDialog.error(String(e.message || e));
+    }
+}
+
+function openCompletePaymentModal(bookingId) {
+    activeBookingId = bookingId;
+    cachedCompletePricing = null;
+    document.getElementById('completePaymentModal').classList.remove('hidden');
+    refreshCompletePaymentPricing();
+}
+
+function closeCompletePaymentModal() {
+    document.getElementById('completePaymentModal').classList.add('hidden');
+    activeBookingId = null;
+    cachedCompletePricing = null;
+}
+
+async function refreshCompletePaymentPricing() {
+    if (!activeBookingId) return;
+    const remainingEl = document.getElementById('completeRemaining');
+    const metaEl = document.getElementById('completeMeta');
+    remainingEl.textContent = 'MWK ...';
+    metaEl.textContent = '';
+
+    try {
+        const res = await fetch(`/api/bookings/${encodeURIComponent(activeBookingId)}/complete-payment-pricing`, {
+            headers: { 'Accept': 'application/json' }
+        });
+        const json = await res.json();
+        if (!json.success) throw new Error(json.message || 'Failed to fetch pricing');
+        const data = json.data || {};
+        cachedCompletePricing = data;
+
+        const remaining = data.remaining_amount ?? null;
+        remainingEl.textContent = remaining != null ? `MWK ${Number(remaining).toLocaleString()}` : 'MWK -';
+        const months = data.remaining_months ?? null;
+        const rent = data.monthly_rent ?? null;
+        metaEl.textContent = [
+            months != null ? `Remaining months: ${months}` : null,
+            rent != null ? `Monthly rent: MWK ${Number(rent).toLocaleString()}` : null
+        ].filter(Boolean).join(' | ');
+    } catch (e) {
+        remainingEl.textContent = 'MWK -';
+        metaEl.textContent = String(e.message || e);
+    }
+}
+
+async function confirmCompletePayment() {
+    if (!activeBookingId) return;
+    const bookingId = activeBookingId;
+    try {
+        const user = await getUserDetails();
+        if (!cachedCompletePricing) {
+            await refreshCompletePaymentPricing();
+        }
+
+        const remainingAmount = (cachedCompletePricing && cachedCompletePricing.remaining_amount) ? cachedCompletePricing.remaining_amount : 0;
+
+        const statusRes = await fetch(`/api/bookings/${encodeURIComponent(activeBookingId)}/complete-payment-status-update`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+                'X-CSRF-TOKEN': csrfToken()
+            },
+            body: JSON.stringify({})
+        });
+        const statusJson = await statusRes.json();
+        if (!statusJson.success) throw new Error(statusJson.message || 'Failed to update complete payment status');
+
+        const payRes = await fetch('/api/payments/complete/initiate', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+                'X-CSRF-TOKEN': csrfToken()
+            },
+            body: JSON.stringify({
+                booking_id: activeBookingId,
+                remaining_amount: remainingAmount,
+                email: user.email,
+                phone_number: user.phone_number || user.phoneNumber || '',
+                first_name: user.first_name || user.firstName || '',
+                last_name: user.last_name || user.lastName || '',
+                payment_method: 'paychangu'
+            })
+        });
+        const payJson = await payRes.json();
+        if (!payJson.success) throw new Error(payJson.message || 'Failed to initiate complete payment');
+
+        const data = payJson.data || {};
+        const paymentUrl = data.payment_url;
+        const paymentId = data.tx_ref;
+
+        if (!paymentUrl) throw new Error('Payment URL not received');
+        closeCompletePaymentModal();
+        window.location.href = `/student/payment/${encodeURIComponent(bookingId)}?paymentUrl=${encodeURIComponent(paymentUrl)}&paymentId=${encodeURIComponent(paymentId || '')}`;
+    } catch (e) {
+        PalevelDialog.error(String(e.message || e));
+    }
+}
+</script>
 @endsection

@@ -193,7 +193,7 @@
         const configValue = document.getElementById('configValue').value;
 
         if (!configValue) {
-            alert('Please enter a valid value');
+            PalevelDialog.error('Please enter a valid value');
             return;
         }
 
@@ -242,7 +242,7 @@
         })
         .catch(error => {
             console.error('Error saving config:', error);
-            alert('Failed to update configuration. Please try again.');
+            PalevelDialog.error('Failed to update configuration. Please try again.');
         });
     }
 

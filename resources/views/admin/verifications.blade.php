@@ -201,19 +201,19 @@ function renderVerificationsTable(data) {
                             <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
                                 ${verification.status === 'pending' ? 
                                     `<div class="flex space-x-2">
-                                        <form action="{{ route('admin.verifications.update-status', ':id') }}" method="POST" class="inline">
+                                        <form action="{{ route('admin.verifications.update-status', ':id') }}" method="POST" class="inline" data-palevel-confirm="Approve this verification?">
                                             @csrf
                                             @method('PUT')
                                             <input type="hidden" name="status" value="approved">
-                                            <button type="submit" class="text-green-600 hover:text-green-900" onclick="return confirm('Approve this verification?')">
+                                            <button type="submit" class="text-green-600 hover:text-green-900">
                                                 <i class="fas fa-check-circle mr-1"></i>Approve
                                             </button>
                                         </form>
-                                        <form action="{{ route('admin.verifications.update-status', ':id') }}" method="POST" class="inline">
+                                        <form action="{{ route('admin.verifications.update-status', ':id') }}" method="POST" class="inline" data-palevel-confirm="Reject this verification?">
                                             @csrf
                                             @method('PUT')
                                             <input type="hidden" name="status" value="rejected">
-                                            <button type="submit" class="text-red-600 hover:text-red-900" onclick="return confirm('Reject this verification?')">
+                                            <button type="submit" class="text-red-600 hover:text-red-900">
                                                 <i class="fas fa-times-circle mr-1"></i>Reject
                                             </button>
                                         </form>

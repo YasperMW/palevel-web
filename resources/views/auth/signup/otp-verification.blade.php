@@ -6,7 +6,9 @@
     <title>Verify Account - PaLevel</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="{{ asset('css/palevel-dialog.css') }}">
     <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+    <script src="{{ asset('js/palevel-dialog.js') }}" defer></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Anta&display=swap');
         
@@ -134,10 +136,16 @@
             try{
                 const res = await fetch("{{ route('signup.resend_otp') }}", { method: 'POST', headers: { 'X-CSRF-TOKEN': document.querySelector('input[name="_token"]').value } });
                 const json = await res.json();
-                alert(json.message || json.error || 'OTP resent');
-            }catch(e){ alert('Network error'); }
+                if (json && json.error) {
+                    PalevelDialog.error(json.error);
+                } else {
+                    PalevelDialog.info((json && json.message) ? json.message : 'OTP resent');
+                }
+            }catch(e){ PalevelDialog.error('Network error'); }
             resendBtn.disabled=false; resendBtn.textContent='Resend Code';
         });
     </script>
+
+    @include('partials.palevel-dialog')
 </body>
 </html>

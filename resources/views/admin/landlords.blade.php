@@ -177,7 +177,7 @@ function renderLandlordsTable(data) {
                             <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
                                 <div class="flex space-x-2">
                                     <form method="POST" action="/admin/users/${landlord.user_id}/update-status" 
-                                          onsubmit="return confirm('Are you sure you want to change this landlord\'s status?')">
+                                          data-palevel-confirm="Are you sure you want to change this landlord's status?">
                                         <input type="hidden" name="_token" value="${document.querySelector('meta[name=\"csrf-token\"]')?.getAttribute('content')}">
                                         ${landlord.status === 'active' ? 
                                             '<input type="hidden" name="new_status" value="inactive"><button type="submit" class="text-yellow-600 hover:text-yellow-900" title="Deactivate"><i class="fas fa-pause"></i></button>' :

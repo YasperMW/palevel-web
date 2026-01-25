@@ -3,10 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Personal Info - PaLevel Signup</title>
+    <title>Personal Info - PaLevel</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="{{ asset('css/palevel-dialog.css') }}">
     <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+    <script src="{{ asset('js/palevel-dialog.js') }}" defer></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Anta&display=swap');
         
@@ -591,7 +593,7 @@
             
             // Handle general errors (not field-specific)
             if(errors.general && errors.general.length > 0) {
-                alert(errors.general[0]);
+                PalevelDialog.error(errors.general[0]);
             }
         }
 
@@ -754,7 +756,7 @@
                     nextBtn.innerHTML = originalText;
                     nextBtn.classList.remove('opacity-75', 'cursor-not-allowed');
                 } else {
-                    alert(json.error || json.detail || 'Failed to create account');
+                    PalevelDialog.error(json.error || json.detail || 'Failed to create account');
                     // Reset button state on error
                     nextBtn.disabled = false; 
                     nextBtn.innerHTML = originalText;
@@ -765,9 +767,11 @@
                 nextBtn.disabled = false; 
                 nextBtn.innerHTML = originalText;
                 nextBtn.classList.remove('opacity-75', 'cursor-not-allowed');
-                alert('Network error'); 
+                PalevelDialog.error('Network error'); 
             }
         });
     </script>
+
+    @include('partials.palevel-dialog')
 </body>
 </html>

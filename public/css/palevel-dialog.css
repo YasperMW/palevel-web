@@ -1,0 +1,112 @@
+:root{
+    --palevel-dialog-backdrop: rgba(15, 23, 42, 0.55);
+    --palevel-dialog-panel: #ffffff;
+    --palevel-dialog-text: #0f172a;
+    --palevel-dialog-muted: #475569;
+    --palevel-dialog-border: #e2e8f0;
+    --palevel-dialog-shadow: 0 25px 50px -12px rgba(0,0,0,0.25);
+    --palevel-dialog-primary: #2563eb;
+    --palevel-dialog-primary-hover: #1d4ed8;
+    --palevel-dialog-danger: #ef4444;
+    --palevel-dialog-danger-hover: #dc2626;
+}
+
+.palevel-dialog.hidden{display:none;}
+.palevel-dialog{
+    position:fixed;
+    inset:0;
+    z-index:9999;
+}
+
+.palevel-dialog__backdrop{
+    position:absolute;
+    inset:0;
+    background:var(--palevel-dialog-backdrop);
+}
+
+.palevel-dialog__panel{
+    position:relative;
+    max-width:520px;
+    width:calc(100% - 2rem);
+    margin:10vh auto 0;
+    background:var(--palevel-dialog-panel);
+    color:var(--palevel-dialog-text);
+    border:1px solid var(--palevel-dialog-border);
+    border-radius:14px;
+    box-shadow:var(--palevel-dialog-shadow);
+    overflow:hidden;
+}
+
+.palevel-dialog__header{
+    display:flex;
+    align-items:flex-start;
+    justify-content:space-between;
+    gap:1rem;
+    padding:1rem 1rem 0.75rem;
+}
+
+.palevel-dialog__title{
+    font-size:1.05rem;
+    font-weight:700;
+    line-height:1.3;
+}
+
+.palevel-dialog__close{
+    appearance:none;
+    border:0;
+    background:transparent;
+    font-size:1.5rem;
+    line-height:1;
+    color:var(--palevel-dialog-muted);
+    cursor:pointer;
+    padding:0.25rem 0.5rem;
+}
+
+.palevel-dialog__close:hover{color:var(--palevel-dialog-text);}
+
+.palevel-dialog__message{
+    padding:0 1rem 1rem;
+    color:var(--palevel-dialog-muted);
+    white-space:pre-wrap;
+}
+
+.palevel-dialog__actions{
+    display:flex;
+    justify-content:flex-end;
+    gap:0.5rem;
+    padding:0.75rem 1rem 1rem;
+    border-top:1px solid var(--palevel-dialog-border);
+}
+
+.palevel-dialog__btn{
+    appearance:none;
+    border:1px solid var(--palevel-dialog-border);
+    background:#fff;
+    color:var(--palevel-dialog-text);
+    border-radius:10px;
+    padding:0.5rem 0.9rem;
+    cursor:pointer;
+    font-weight:600;
+}
+
+.palevel-dialog__btn:disabled{opacity:0.6;cursor:not-allowed;}
+
+.palevel-dialog__btn--primary{
+    background:var(--palevel-dialog-primary);
+    border-color:var(--palevel-dialog-primary);
+    color:#fff;
+}
+
+.palevel-dialog__btn--primary:hover{background:var(--palevel-dialog-primary-hover);border-color:var(--palevel-dialog-primary-hover);}
+
+.palevel-dialog__btn--danger{
+    background:var(--palevel-dialog-danger);
+    border-color:var(--palevel-dialog-danger);
+    color:#fff;
+}
+
+.palevel-dialog__btn--danger:hover{background:var(--palevel-dialog-danger-hover);border-color:var(--palevel-dialog-danger-hover);}
+
+.palevel-dialog__btn--secondary{
+    background:#fff;
+}

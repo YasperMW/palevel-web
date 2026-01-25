@@ -13,8 +13,8 @@ class PalevelApiService
 
     public function __construct()
     {
-        $this->baseUrl = config('palevel.api_url');
-        $this->timeout = config('palevel.api_timeout');
+        $this->baseUrl = (string) (config('palevel.api_url') ?: config('services.api.base_url'));
+        $this->timeout = (int) (config('palevel.api_timeout') ?: config('services.api.timeout'));
     }
 
     private function makeRequest(string $method, string $endpoint, array $data = [], array $headers = [])
@@ -23,9 +23,27 @@ class PalevelApiService
             // Ensure base URL doesn't have trailing slash and endpoint starts with slash
             $baseUrl = rtrim($this->baseUrl, '/');
             $endpoint = '/' . ltrim($endpoint, '/');
-            $url = "{$baseUrl}{$endpoint}";
+
+            $endpointParts = explode('?', $endpoint, 2);
+            $endpointPath = $endpointParts[0] ?? $endpoint;
+            $endpointQueryString = $endpointParts[1] ?? '';
+
+            $endpointQuery = [];
+            if (is_string($endpointQueryString) && $endpointQueryString !== '') {
+                parse_str($endpointQueryString, $endpointQuery);
+            }
+
+            $methodLower = strtolower($method);
+            $isQueryMethod = in_array($methodLower, ['get', 'head', 'delete', 'options'], true);
+
+            $url = "{$baseUrl}{$endpointPath}";
+            $query = $isQueryMethod ? array_merge($endpointQuery, $data) : $endpointQuery;
+            $urlForLog = $url;
+            if (!empty($query)) {
+                $urlForLog .= '?' . http_build_query($query);
+            }
             
-            Log::info("Making API request: {$method} {$url}", [
+            Log::info("Making API request: {$method} {$urlForLog}", [
                 'data_count' => count($data)
             ]);
             
@@ -36,10 +54,9 @@ class PalevelApiService
 
             $headers = array_merge($defaultHeaders, $headers);
 
-            // Try with shorter timeout first
-            $timeout = min($this->timeout, 10); // Cap at 10 seconds
-            
-            $response = Http::timeout($timeout)
+            $timeout = max(1, (int) $this->timeout);
+
+            $request = Http::timeout($timeout)
                 ->withOptions([
                     'verify' => false, // Disable SSL verification for development
                     'curl' => [
@@ -47,15 +64,26 @@ class PalevelApiService
                         CURLOPT_SSL_VERIFYHOST => false,
                     ]
                 ])
-                ->withHeaders($headers)
-                ->{$method}($url, $data);
+                ->withHeaders($headers);
+
+            if ($isQueryMethod) {
+                $response = empty($query)
+                    ? $request->{$methodLower}($url)
+                    : $request->{$methodLower}($url, $query);
+            } else {
+                $urlWithQuery = $url;
+                if (!empty($endpointQuery)) {
+                    $urlWithQuery .= '?' . http_build_query($endpointQuery);
+                }
+                $response = $request->{$methodLower}($urlWithQuery, $data);
+            }
 
             if ($response->successful()) {
                 Log::info("API request successful: {$method} {$url}");
                 return $response->json();
             }
 
-            Log::error("Palevel API Error: {$method} {$url}", [
+            Log::error("Palevel API Error: {$method} {$urlForLog}", [
                 'status' => $response->status(),
                 'response' => $response->body(),
                 'data' => $data
@@ -261,9 +289,16 @@ class PalevelApiService
 
     public function getUserProfile(?string $email = null, ?string $userId = null)
     {
+        $email = is_string($email) ? trim($email) : $email;
+        $userId = is_string($userId) ? trim($userId) : $userId;
+
+        if (empty($email) && empty($userId)) {
+            throw new \InvalidArgumentException('Email or user_id is required to fetch user profile');
+        }
+
         $params = [];
-        if ($email) $params['email'] = $email;
-        if ($userId) $params['user_id'] = $userId;
+        if (!empty($email)) $params['email'] = $email;
+        if (!empty($userId)) $params['user_id'] = $userId;
 
         $endpoint = '/user/profile/?' . http_build_query($params);
         return $this->makeRequest('GET', $endpoint);
@@ -296,6 +331,24 @@ class PalevelApiService
         }
         
         return $response;
+    }
+
+    public function verifyExtensionPayment(string $paymentId, string $token)
+    {
+        return $this->makeRequest('POST', '/payments/verify-extension-payment/', [
+            'payment_id' => $paymentId
+        ], [
+            'Authorization' => 'Bearer ' . trim($token)
+        ]);
+    }
+
+    public function verifyCompletePayment(string $paymentId, string $token)
+    {
+        return $this->makeRequest('POST', '/payments/verify-complete-payment/', [
+            'payment_id' => $paymentId
+        ], [
+            'Authorization' => 'Bearer ' . trim($token)
+        ]);
     }
 
     public function getHostel(string $hostelId)
@@ -376,7 +429,7 @@ class PalevelApiService
         $user = session('palevel_user');
         $userId = $user['user_id'] ?? null;
         
-        $endpoint = '/bookings/my-bookings/';
+        $endpoint = '/bookings/my-bookings/?include_payment_details=true';
         
         // Add debug logging
         Log::info("Fetching bookings for user", [
@@ -419,21 +472,27 @@ class PalevelApiService
 
     public function getBooking(string $bookingId, string $token)
     {
-        
-        // Get all user bookings and find the specific one
+        // Flutter primarily relies on my-bookings with include_payment_details=true.
+        // Some backends do not implement GET /bookings/{id} (as seen in logs: 404).
+        // So we resolve a single booking by scanning the authoritative my-bookings payload.
+
         $allBookings = $this->getMyBookings($token);
-        
+
         if (!is_array($allBookings)) {
             return null;
         }
-        
-        // Find the booking with the matching ID
-        foreach ($allBookings as $booking) {
-            if (isset($booking['booking_id']) && $booking['booking_id'] === $bookingId) {
+
+        $bookingsList = $allBookings;
+        if (isset($allBookings['data']) && is_array($allBookings['data'])) {
+            $bookingsList = $allBookings['data'];
+        }
+
+        foreach ($bookingsList as $booking) {
+            if (is_array($booking) && isset($booking['booking_id']) && (string) $booking['booking_id'] === (string) $bookingId) {
                 return $booking;
             }
         }
-        
+
         return null;
     }
 
@@ -447,6 +506,52 @@ class PalevelApiService
     public function verifyPayment(string $reference, string $token)
     {
         return $this->makeRequest('GET', '/payments/verify/', ['reference' => $reference], [
+            'Authorization' => 'Bearer ' . trim($token)
+        ]);
+    }
+
+    public function updateExtensionStatus(string $bookingId, int $additionalMonths, string $token)
+    {
+        return $this->makeRequest('POST', "/bookings/{$bookingId}/extension-status-update", [
+            'additional_months' => $additionalMonths
+        ], [
+            'Authorization' => 'Bearer ' . trim($token)
+        ]);
+    }
+
+    public function getExtensionPricing(string $bookingId, int $additionalMonths, string $token)
+    {
+        return $this->makeRequest('GET', "/bookings/{$bookingId}/extension-pricing", [
+            'additional_months' => $additionalMonths
+        ], [
+            'Authorization' => 'Bearer ' . trim($token)
+        ]);
+    }
+
+    public function initiateExtensionPayment(array $data, string $token)
+    {
+        return $this->makeRequest('POST', '/payments/extend/initiate/', $data, [
+            'Authorization' => 'Bearer ' . trim($token)
+        ]);
+    }
+
+    public function updateCompletePaymentStatus(string $bookingId, string $token)
+    {
+        return $this->makeRequest('POST', "/bookings/{$bookingId}/complete-payment-status-update", [], [
+            'Authorization' => 'Bearer ' . trim($token)
+        ]);
+    }
+
+    public function getCompletePaymentPricing(string $bookingId, string $token)
+    {
+        return $this->makeRequest('GET', "/bookings/{$bookingId}/complete-payment-pricing", [], [
+            'Authorization' => 'Bearer ' . trim($token)
+        ]);
+    }
+
+    public function initiateCompletePayment(array $data, string $token)
+    {
+        return $this->makeRequest('POST', '/payments/complete/initiate/', $data, [
             'Authorization' => 'Bearer ' . trim($token)
         ]);
     }
