@@ -2,6 +2,10 @@
 
 @section('title', 'Data Deletion Request')
 
+@php
+    $currentUser = Session::get('palevel_user');
+@endphp
+
 @section('content')
 <div class="min-h-screen bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
     <div class="max-w-4xl mx-auto">
@@ -146,7 +150,7 @@
                         </label>
                         <input type="text" id="name" name="name" required
                                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                               value="{{ old('name') }}" placeholder="Enter your full name">
+                               value="{{ old('name', $currentUser['first_name'] . ' ' . $currentUser['last_name']) }}" placeholder="Enter your full name">
                         @error('name')
                             <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
                         @enderror
@@ -156,9 +160,10 @@
                         <label for="email" class="block text-sm font-medium text-gray-700 mb-2">
                             Email Address <span class="text-red-500">*</span>
                         </label>
-                        <input type="email" id="email" name="email" required
-                               class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                               value="{{ old('email') }}" placeholder="your.email@example.com">
+                        <input type="email" id="email" name="email" required readonly
+                               class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-gray-50"
+                               value="{{ old('email', $currentUser['email']) }}" placeholder="your.email@example.com">
+                        <p class="mt-1 text-xs text-gray-500">Email is locked to your account for security</p>
                         @error('email')
                             <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
                         @enderror
@@ -171,7 +176,7 @@
                     </label>
                     <input type="tel" id="phone" name="phone" required
                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                           value="{{ old('phone') }}" placeholder="+265 999 123 456">
+                           value="{{ old('phone', $currentUser['phone'] ?? '') }}" placeholder="+265 999 123 456">
                     @error('phone')
                         <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
                     @enderror
@@ -254,9 +259,13 @@
                     <a href="{{ url('/') }}" class="px-6 py-3 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors">
                         Cancel
                     </a>
-                    <button type="submit" 
-                            class="px-6 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium">
-                        Submit Deletion Request
+                    <button type="submit" id="submitBtn"
+                            class="px-6 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium flex items-center">
+                        <span id="submitText">Submit Deletion Request</span>
+                        <svg id="loadingSpinner" class="hidden animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
                     </button>
                 </div>
             </form>
@@ -269,4 +278,103 @@
         </div>
     </div>
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.querySelector('form');
+    const submitBtn = document.getElementById('submitBtn');
+    const submitText = document.getElementById('submitText');
+    const loadingSpinner = document.getElementById('loadingSpinner');
+
+    // Show any existing messages using existing PalevelDialog
+    @if(session('success'))
+        window.PalevelDialog.info('{{ session('success') }}', 'Success');
+    @endif
+
+    @if(session('error'))
+        window.PalevelDialog.error('{{ session('error') }}', 'Error');
+    @endif
+
+    form.addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        // Show loading state
+        submitBtn.disabled = true;
+        submitText.textContent = 'Submitting...';
+        loadingSpinner.classList.remove('hidden');
+        
+        // Get form data
+        const formData = new FormData(form);
+        
+        // Submit via fetch API
+        fetch(form.action, {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'Accept': 'text/html'
+            }
+        })
+        .then(response => {
+            if (response.redirected) {
+                // If the response is a redirect, follow it
+                window.location.href = response.url;
+            } else {
+                return response.text();
+            }
+        })
+        .then(html => {
+            if (html) {
+                // If we got HTML content, it means there was an error
+                // Parse the HTML to extract error messages
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(html, 'text/html');
+                
+                // Look for error messages
+                const errorElements = doc.querySelectorAll('.bg-red-100');
+                if (errorElements.length > 0) {
+                    const errorMessage = errorElements[0].textContent.trim();
+                    window.PalevelDialog.error(errorMessage, 'Error');
+                } else {
+                    window.PalevelDialog.error('There was an error submitting your request. Please try again.', 'Error');
+                }
+                
+                // Reset loading state
+                submitBtn.disabled = false;
+                submitText.textContent = 'Submit Deletion Request';
+                loadingSpinner.classList.add('hidden');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            // Show error message using existing dialog
+            window.PalevelDialog.error('There was an error submitting your request. Please try again.', 'Error');
+            
+            // Reset loading state
+            submitBtn.disabled = false;
+            submitText.textContent = 'Submit Deletion Request';
+            loadingSpinner.classList.add('hidden');
+        });
+    });
+
+    // Handle confirmation checkbox
+    const confirmationCheckbox = document.getElementById('confirmation');
+    const dataCategoryCheckboxes = document.querySelectorAll('input[name="data_categories[]"]');
+    
+    function validateForm() {
+        const hasDataCategories = Array.from(dataCategoryCheckboxes).some(cb => cb.checked);
+        const hasConfirmation = confirmationCheckbox.checked;
+        
+        submitBtn.disabled = !(hasDataCategories && hasConfirmation);
+    }
+    
+    confirmationCheckbox.addEventListener('change', validateForm);
+    dataCategoryCheckboxes.forEach(checkbox => {
+        checkbox.addEventListener('change', validateForm);
+    });
+    
+    // Initial validation
+    validateForm();
+});
+</script>
 @endsection

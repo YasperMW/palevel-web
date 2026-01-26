@@ -168,6 +168,7 @@ async def create_hostel(
     }
 
 
+@router.get("/all-hostels")
 def get_all_hostels(db: Session = Depends(get_db)):
     """Get all hostels for students with their media and landlord details."""
     

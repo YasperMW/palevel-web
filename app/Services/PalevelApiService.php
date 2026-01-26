@@ -17,7 +17,7 @@ class PalevelApiService
         $this->timeout = (int) (config('palevel.api_timeout') ?: config('services.api.timeout'));
     }
 
-    private function makeRequest(string $method, string $endpoint, array $data = [], array $headers = [])
+    public function makeRequest(string $method, string $endpoint, array $data = [], array $headers = [])
     {
         try {
             // Ensure base URL doesn't have trailing slash and endpoint starts with slash
