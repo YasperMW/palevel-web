@@ -462,8 +462,19 @@ async def paychangu_webhook(request: Request, background_tasks: BackgroundTasks,
             verify_resp = await loop.run_in_executor(None, client.verify_transaction, tx_ref)
 
             try:
-                payment = db.query(PaymentModel).filter(PaymentModel.transaction_id == tx_ref).first()
+                payment_query = db.query(PaymentModel).filter(PaymentModel.transaction_id == tx_ref)
+                try:
+                    payment_query = payment_query.with_for_update()
+                except Exception:
+                    pass
+
+                payment = payment_query.first()
                 if payment:
+                    # Idempotency: webhook delivery is retried by payment providers.
+                    # If we've already processed this payment, do not apply booking updates again.
+                    if (payment.status or "").lower() == "completed":
+                        return Response(status_code=204)
+
                     if verify_resp.get('status') == 'success':
                         payment.status = 'completed'
                         payment.paid_at = datetime.utcnow()
@@ -497,19 +508,28 @@ async def paychangu_webhook(request: Request, background_tasks: BackgroundTasks,
                                         extension_months = payment.meta.get('additional_months')
                                     
                                     if extension_months:
+                                        booking.duration_months = (booking.duration_months or 0) + int(extension_months)
                                         new_end_date = booking.end_date + relativedelta(months=extension_months)
                                         booking.end_date = new_end_date
                                         booking.status = 'confirmed'
                                         
                                         # Update total_amount to include extension payment
                                         # Get sum of all previous completed payments
-                                        previous_payments = db.query(Payment).filter(
-                                            Payment.booking_id == booking.booking_id,
-                                            Payment.status == 'completed'
+                                        previous_payments = db.query(PaymentModel).filter(
+                                            PaymentModel.booking_id == booking.booking_id,
+                                            PaymentModel.status == 'completed',
+                                            PaymentModel.transaction_id != tx_ref
                                         ).all()
                                         
-                                        previous_total = sum(p.amount for p in previous_payments)
-                                        new_total_amount = previous_total + payment.amount
+                                        previous_total = sum(
+                                            (
+                                                (p.amount if p.amount is not None else Decimal("0"))
+                                                for p in previous_payments
+                                            ),
+                                            Decimal("0"),
+                                        )
+                                        payment_amount = payment.amount if payment.amount is not None else Decimal("0")
+                                        new_total_amount = previous_total + payment_amount
                                         booking.total_amount = float(new_total_amount)
                                         print(f"Updated booking total_amount to {new_total_amount} for extension (previous: {previous_total}, extension: {payment.amount})")
                                 except Exception as e:
@@ -549,7 +569,7 @@ async def paychangu_webhook(request: Request, background_tasks: BackgroundTasks,
                             if payment.payment_type == "extension":
                                 print(f"Extension payment found: {payment.payment_id}, meta: {payment.meta}")
                                 
-                                # Update booking end date after successful payment
+                                # Booking updates were already applied above; do NOT update/commit again here.
                                 additional_months = None
                                 if payment.meta and isinstance(payment.meta, dict):
                                     additional_months = payment.meta.get("additional_months")
@@ -557,64 +577,41 @@ async def paychangu_webhook(request: Request, background_tasks: BackgroundTasks,
                                 else:
                                     print(f"Payment meta is None or not a dict: {payment.meta}")
                                 
-                                if additional_months:
-                                    # Update booking end date and total_amount
-                                    new_end_date = booking.end_date + relativedelta(months=additional_months)
-                                    booking.end_date = new_end_date
-                                    # Update booking status from pending_extension to confirmed
-                                    booking.status = 'confirmed'
-                                    
-                                    # Update total_amount to include extension payment
-                                    # Get sum of all previous completed payments
-                                    previous_payments = db.query(Payment).filter(
-                                        Payment.booking_id == booking.booking_id,
-                                        Payment.status == 'completed'
-                                    ).all()
-                                    
-                                    previous_total = sum(p.amount for p in previous_payments)
-                                    new_total_amount = previous_total + payment.amount
-                                    booking.total_amount = float(new_total_amount)
-                                    print(f"Updated booking total_amount to {new_total_amount} for extension (previous: {previous_total}, extension: {payment.amount})")
-                                    db.commit()
-                                    print(f"Booking updated: end_date={new_end_date}, status={booking.status}")
-                                
-                                    # Prepare extension data for email
-                                    extension_data = {
-                                        'booking_id': str(booking.booking_id),
-                                        'student_first_name': student.first_name,
-                                        'student_last_name': student.last_name,
-                                        'student_email': student.email,
-                                        'hostel_name': hostel.name,
-                                        'room_number': room.room_number,
-                                        'room_type': room.room_type,
-                                        'extension_payment_id': str(payment.payment_id),
-                                        'payment_date': _safe_format_datetime(payment.paid_at, "%B %d, %Y", "Payment Processing"),
-                                        'previous_checkout_date': payment.meta.get("original_end_date", "N/A") if payment.meta else 'N/A',
-                                        'new_checkout_date': _safe_format_datetime(booking.end_date, "%B %d, %Y", "N/A"),
-                                        'monthly_rent': str(room.price_per_month),
-                                        'platform_fee': str(get_platform_fee(db)),
-                                        'extension_amount': str(payment.amount),
-                                        'new_total_amount': str(new_total_amount),
-                                        'payment_method': payment.payment_method,
-                                        'transaction_id': payment.transaction_id or 'N/A',
-                                    }
-                                    
-                                    # Send extension email with PDF (in background to avoid blocking)
-                                    try:
-                                        # Create background task to send email asynchronously
-                                        background_tasks.add_task(
-                                            email_service.send_booking_extension_email,
-                                            email=student.email,
-                                            first_name=student.first_name,
-                                            booking_data=extension_data
-                                        )
-                                        
-                                    except Exception as email_error:
-                                        # Log email error but don't fail the payment
-                                        print(f"Failed to send extension email: {email_error}")
-                                else:
-                                    # Handle case where additional_months is not available
+                                if not additional_months:
                                     print(f"Extension payment found but additional_months metadata missing for payment {payment.payment_id}")
+
+                                # Prepare extension data for email
+                                extension_data = {
+                                    'booking_id': str(booking.booking_id),
+                                    'student_first_name': student.first_name,
+                                    'student_last_name': student.last_name,
+                                    'student_email': student.email,
+                                    'hostel_name': hostel.name,
+                                    'room_number': room.room_number,
+                                    'room_type': room.room_type,
+                                    'extension_payment_id': str(payment.payment_id),
+                                    'payment_date': _safe_format_datetime(payment.paid_at, "%B %d, %Y", "Payment Processing"),
+                                    'previous_checkout_date': payment.meta.get("original_end_date", "N/A") if payment.meta else 'N/A',
+                                    'new_checkout_date': _safe_format_datetime(booking.end_date, "%B %d, %Y", "N/A"),
+                                    'monthly_rent': str(room.price_per_month),
+                                    'platform_fee': str(get_platform_fee(db)),
+                                    'extension_amount': str(payment.amount),
+                                    'new_total_amount': str(booking.total_amount),
+                                    'payment_method': payment.payment_method,
+                                    'transaction_id': payment.transaction_id or 'N/A',
+                                }
+                                
+                                # Send extension email with PDF (in background to avoid blocking)
+                                try:
+                                    background_tasks.add_task(
+                                        email_service.send_booking_extension_email,
+                                        email=student.email,
+                                        first_name=student.first_name,
+                                        booking_data=extension_data
+                                    )
+                                except Exception as email_error:
+                                    # Log email error but don't fail the payment
+                                    print(f"Failed to send extension email: {email_error}")
                             else:
                                 # Regular booking confirmation email (in background to avoid blocking)
                                 background_tasks.add_task(
@@ -663,11 +660,17 @@ async def verify_extension_payment(
     if not transaction_id:
         raise HTTPException(status_code=422, detail="payment_id field is required")
     
-    # Get extension payment record by transaction_id
-    payment = db.query(PaymentModel).filter(
+    # Get extension payment record by transaction_id (lock row if supported)
+    payment_query = db.query(PaymentModel).filter(
         PaymentModel.transaction_id == transaction_id,
         PaymentModel.payment_type == "extension"
-    ).first()
+    )
+    try:
+        payment_query = payment_query.with_for_update()
+    except Exception:
+        pass
+
+    payment = payment_query.first()
     
     if not payment:
         raise HTTPException(status_code=404, detail="Extension payment not found")
@@ -687,6 +690,15 @@ async def verify_extension_payment(
             detail="Extension payment was not initiated properly. No transaction ID found."
         )
     
+    # Idempotency: if we've already completed this payment, do not apply extension again.
+    if (payment.status or "").lower() == "completed":
+        return {
+            "status": "success",
+            "message": "Extension payment already verified",
+            "booking_status": booking.status,
+            "new_end_date": booking.end_date.isoformat() if booking.end_date else None
+        }
+
     # Call PayChangu verification
     try:
         client, _ = _get_paychangu_client()
@@ -713,7 +725,7 @@ async def verify_extension_payment(
             booking.end_date = new_end_date
             booking.status = 'confirmed'
             # Update duration_months to reflect the extension
-            booking.duration_months += additional_months
+            booking.duration_months = (booking.duration_months or 0) + additional_months
             
             # Update total_amount to include extension payment
             # Get sum of all previous completed payments
@@ -857,11 +869,17 @@ async def verify_complete_payment(
     if not transaction_id:
         raise HTTPException(status_code=422, detail="payment_id field is required")
     
-    # Get complete payment record by transaction_id
-    payment = db.query(PaymentModel).filter(
+    # Get complete payment record by transaction_id (lock row if supported)
+    payment_query = db.query(PaymentModel).filter(
         PaymentModel.transaction_id == transaction_id,
         PaymentModel.payment_type == "complete"
-    ).first()
+    )
+    try:
+        payment_query = payment_query.with_for_update()
+    except Exception:
+        pass
+
+    payment = payment_query.first()
     
     if not payment:
         raise HTTPException(status_code=404, detail="Complete payment not found")
@@ -880,6 +898,16 @@ async def verify_complete_payment(
             status_code=400, 
             detail="Complete payment was not initiated properly. No transaction ID found."
         )
+
+    # Idempotency: if we've already applied this payment, don't apply it again.
+    # This protects against polling/retries causing multiple updates.
+    if (payment.status or "").lower() == "completed" or (booking.payment_type or "").lower() == "full":
+        return {
+            "status": "success",
+            "message": "Complete payment already verified",
+            "booking_status": booking.status,
+            "payment_type": booking.payment_type
+        }
     
     # Call PayChangu verification
     try:

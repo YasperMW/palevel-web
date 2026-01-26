@@ -84,88 +84,7 @@
 <body class="gradient-bg min-h-screen overflow-x-hidden">
     <div id="app" class="min-h-screen flex flex-col">
         <!-- Navigation Bar -->
-        <nav class="relative z-50 bg-white/10 backdrop-blur-md border-b border-white/20">
-            <div class="max-w-7xl mx-auto px-6 py-4">
-                <div class="flex justify-between items-center">
-                    <!-- Logo -->
-                    <div class="flex items-center space-x-3">
-                        <div class="w-10 h-10 bg-white rounded-lg flex items-center justify-center shadow-lg overflow-hidden">
-                            <img src="{{ asset('images/PaLevel Logo-White.png') }}" alt="PaLevel" class="w-full h-full object-contain p-1">
-                        </div>
-                        <span class="text-white font-bold text-xl anta-font">PaLevel</span>
-                    </div>
-
-                    <!-- Desktop Navigation -->
-                    <div class="hidden md:flex items-center space-x-8">
-                        <a href="#features" class="text-white/90 hover:text-white font-medium transition-colors duration-200 relative group">
-                            Features
-                            <span class="absolute bottom-0 left-0 w-0 h-0.5 bg-white transition-all duration-200 group-hover:w-full"></span>
-                        </a>
-                        <a href="#about" class="text-white/90 hover:text-white font-medium transition-colors duration-200 relative group">
-                            About
-                            <span class="absolute bottom-0 left-0 w-0 h-0.5 bg-white transition-all duration-200 group-hover:w-full"></span>
-                        </a>
-                        <a href="#contact" class="text-white/90 hover:text-white font-medium transition-colors duration-200 relative group">
-                            Contact
-                            <span class="absolute bottom-0 left-0 w-0 h-0.5 bg-white transition-all duration-200 group-hover:w-full"></span>
-                        </a>
-                    </div>
-
-                    <!-- CTA Buttons -->
-                    <div class="hidden md:flex items-center space-x-4">
-                        <a href="{{ route('login') }}" 
-                           class="text-white/90 hover:text-white font-medium transition-colors duration-200">
-                            Sign In
-                        </a>
-                        <a href="{{ route('register.choice') }}" 
-                           class="bg-white text-teal-700 px-6 py-2 rounded-full font-semibold hover:bg-gray-100 transform hover:scale-105 transition-all duration-300 shadow-lg">
-                            Get Started
-                        </a>
-                        <a href="{{ route('download.app') }}" 
-                           class="bg-gray-800 text-teal-100 px-6 py-2 rounded-full font-semibold hover:bg-gray-100 hover:text-gray-800 transform hover:scale-105 transition-all duration-300 shadow-lg">
-                            Download App
-                        </a>
-                    </div>
-
-                    <!-- Mobile Menu Button -->
-                    <div class="md:hidden">
-                        <button x-data="{ open: false }" @click="open = !open" class="text-white/90 hover:text-white transition-colors">
-                            <i class="fas fa-bars text-xl"></i>
-                        </button>
-                    </div>
-                </div>
-
-                <!-- Mobile Navigation -->
-                <div x-data="{ open: false }" x-show="open" @click.away="open = false" 
-                     x-transition:enter="transition ease-out duration-200"
-                     x-transition:enter-start="opacity-0 transform -translate-y-2"
-                     x-transition:enter-end="opacity-100 transform translate-y-0"
-                     x-transition:leave="transition ease-in duration-150"
-                     x-transition:leave-start="opacity-100 transform translate-y-0"
-                     x-transition:leave-end="opacity-0 transform -translate-y-2"
-                     class="md:hidden mt-4 pt-4 border-t border-white/20">
-                    <div class="flex flex-col space-y-4">
-                        <a href="#features" class="text-white/90 hover:text-white font-medium transition-colors duration-200">Features</a>
-                        <a href="#about" class="text-white/90 hover:text-white font-medium transition-colors duration-200">About</a>
-                        <a href="#contact" class="text-white/90 hover:text-white font-medium transition-colors duration-200">Contact</a>
-                        <div class="flex flex-col space-y-3 pt-4 border-t border-white/20">
-                            <a href="{{ route('login') }}" 
-                               class="text-white/90 hover:text-white font-medium transition-colors duration-200 text-center">
-                                Sign In
-                            </a>
-                            <a href="{{ route('register.choice') }}" 
-                               class="bg-white text-teal-700 px-6 py-2 rounded-full font-semibold hover:bg-gray-100 transform hover:scale-105 transition-all duration-300 shadow-lg text-center">
-                                Get Started
-                            </a>
-                            <a href="{{ route('download.app') }}" 
-                               class="bg-gray-800 text-teal-100 px-6 py-2 rounded-full font-semibold hover:bg-gray-100 hover:text-gray-800 transform hover:scale-105 transition-all duration-300 shadow-lg text-center">
-                                Download App
-                            </a>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </nav>
+        @include('partials.auth-navigation')
 
         <!-- Hero Section -->
         <main class="flex-1 flex items-center justify-center px-6 py-12">
@@ -235,19 +154,23 @@
 
                 <!-- Featured Hostels Section -->
                 <div id="hostels" class="mb-16">
-                    <div class="text-center mb-12">
-                        <h2 class="text-3xl md:text-4xl font-bold text-white anta-font mb-4">Featured Hostels</h2>
-                        <p class="text-xl text-white/90 max-w-2xl mx-auto">
-                            Discover some of the best student accommodations available right now
-                        </p>
-                    </div>
+                    <div class="bg-white rounded-3xl shadow-2xl border border-white/30 overflow-hidden">
+                        <div class="px-6 pt-10 pb-8 md:px-10">
+                            <div class="text-center">
+                                <h2 class="text-3xl md:text-4xl font-bold text-gray-900 anta-font mb-3">Featured Hostels</h2>
+                                <p class="text-lg text-gray-600 max-w-2xl mx-auto">
+                                    Discover some of the best student accommodations available right now
+                                </p>
+                            </div>
+                        </div>
 
-                    @if(isset($hostels) && count($hostels) > 0)
-                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                            @foreach(array_slice($hostels, 0, 6) as $hostel)
-                                <div class="glass-effect rounded-2xl overflow-hidden transform hover:scale-105 transition-all duration-300">
-                                    <!-- Image -->
-                                    <div class="relative h-48 w-full">
+                        @if(isset($hostels) && count($hostels) > 0)
+                            <div class="px-6 pb-10 md:px-10">
+                                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                                    @foreach(array_slice($hostels, 0, 6) as $hostel)
+                                        <div class="group bg-white rounded-2xl overflow-hidden border border-gray-100 shadow-sm hover:shadow-2xl hover:-translate-y-1 transition-all duration-300">
+                                            <!-- Image -->
+                                            <div class="relative h-48 w-full overflow-hidden">
                                         @php
                                             $coverImage = null;
                                             if (isset($hostel['media']) && is_array($hostel['media']) && count($hostel['media']) > 0) {
@@ -269,60 +192,65 @@
                                         @endphp
                                         @if($coverImage)
                                             <img src="{{ $coverImage }}" alt="{{ $hostel['name'] }}" 
-                                                 class="w-full h-full object-cover">
+                                                 class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110">
                                         @else
-                                            <div class="w-full h-full bg-white/20 flex items-center justify-center">
-                                                <i class="fas fa-home text-white text-4xl"></i>
+                                            <div class="w-full h-full bg-gray-100 flex items-center justify-center">
+                                                <i class="fas fa-home text-gray-400 text-4xl"></i>
                                             </div>
                                         @endif
-                                        <div class="absolute top-4 right-4">
-                                            <span class="px-3 py-1 bg-teal-600 text-white text-xs font-bold rounded-full">
-                                                {{ $hostel['type'] ?? 'Hostel' }}
-                                            </span>
-                                        </div>
-                                    </div>
-                                    
-                                    <!-- Content -->
-                                    <div class="p-6">
-                                        <h3 class="text-xl font-bold text-white mb-2 truncate">{{ $hostel['name'] }}</h3>
-                                        <p class="text-white/80 text-sm mb-4 flex items-center">
-                                            <i class="fas fa-map-marker-alt mr-2"></i>
-                                            <span class="truncate">{{ $hostel['address'] }}, {{ $hostel['district'] }}</span>
-                                        </p>
-                                        
-                                        <div class="flex items-center justify-between mb-4 text-white/90 text-sm">
-                                            <span><i class="fas fa-bed mr-1"></i> {{ $hostel['total_rooms'] ?? 0 }} Rooms</span>
-                                            <span class="truncate max-w-[50%]"><i class="fas fa-university mr-1"></i> {{ $hostel['university'] }}</span>
-                                        </div>
-                                        
-                                        <div class="border-t border-white/20 pt-4 flex items-center justify-between">
-                                            <div>
-                                                <span class="text-xl font-bold text-white">
-                                                    MK{{ number_format($hostel['price_per_month'] ?? 0) }}
+                                            <div class="absolute inset-0 bg-gradient-to-t from-black/50 via-black/0 to-black/0 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                                            <div class="absolute top-4 left-4">
+                                                <span class="px-3 py-1 bg-teal-600 text-white text-xs font-bold rounded-full shadow">
+                                                    {{ $hostel['type'] ?? 'Hostel' }}
                                                 </span>
-                                                <span class="text-white/70 text-sm">/mo</span>
                                             </div>
-                                            <a href="{{ route('login') }}" class="bg-white text-teal-700 px-4 py-2 rounded-lg font-semibold hover:bg-gray-100 transition-colors text-sm">
-                                                View Details
-                                            </a>
+                                        </div>
+                                        
+                                        <!-- Content -->
+                                        <div class="p-6">
+                                            <h3 class="text-lg font-bold text-gray-900 mb-2 truncate group-hover:text-teal-700 transition-colors">{{ $hostel['name'] }}</h3>
+                                            <p class="text-gray-600 text-sm mb-4 flex items-center">
+                                                <i class="fas fa-map-marker-alt mr-2 text-teal-600"></i>
+                                                <span class="truncate">{{ $hostel['address'] }}, {{ $hostel['district'] }}</span>
+                                            </p>
+                                            
+                                            <div class="flex items-center justify-between mb-4 text-gray-600 text-sm">
+                                                <span><i class="fas fa-bed mr-1 text-gray-400"></i> {{ $hostel['total_rooms'] ?? 0 }} Rooms</span>
+                                                <span class="truncate max-w-[50%]"><i class="fas fa-university mr-1 text-gray-400"></i> {{ $hostel['university'] }}</span>
+                                            </div>
+                                            
+                                            <div class="border-t border-gray-100 pt-4 flex items-center justify-between">
+                                                <div>
+                                                    <span class="text-xl font-bold text-gray-900">
+                                                        MK{{ number_format($hostel['price_per_month'] ?? 0) }}
+                                                    </span>
+                                                    <span class="text-gray-500 text-sm">/mo</span>
+                                                </div>
+                                                <a href="{{ route('login') }}" class="bg-teal-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-teal-700 transition-colors text-sm">
+                                                    View Details
+                                                </a>
+                                            </div>
                                         </div>
                                     </div>
+                                @endforeach
                                 </div>
-                            @endforeach
-                        </div>
-                        
-                        <div class="text-center mt-12">
-                            <a href="{{ route('register.choice') }}" class="inline-block border-2 border-white text-white px-8 py-3 rounded-full font-semibold hover:bg-white hover:text-teal-700 transition-all duration-300">
-                                View All Hostels
-                            </a>
-                        </div>
-                    @else
-                        <div class="glass-effect rounded-2xl p-8 text-center max-w-2xl mx-auto">
-                            <i class="fas fa-building text-white text-4xl mb-4"></i>
-                            <p class="text-white text-lg">No hostels currently available to display.</p>
-                            <p class="text-white/80 mt-2">Check back soon or sign up to get notified when new hostels are added.</p>
-                        </div>
-                    @endif
+                            </div>
+                            
+                            <div class="text-center pb-10">
+                                <a href="{{ route('register.choice') }}" class="inline-block bg-gray-900 text-white px-8 py-3 rounded-full font-semibold hover:bg-teal-700 transition-all duration-300">
+                                    View All Hostels
+                                </a>
+                            </div>
+                        @else
+                            <div class="px-6 pb-10 md:px-10">
+                                <div class="rounded-2xl p-10 text-center bg-gray-50 border border-gray-100">
+                                    <i class="fas fa-building text-gray-400 text-4xl mb-4"></i>
+                                    <p class="text-gray-900 text-lg font-semibold">No hostels currently available to display.</p>
+                                    <p class="text-gray-600 mt-2">Check back soon or sign up to get notified when new hostels are added.</p>
+                                </div>
+                            </div>
+                        @endif
+                    </div>
                 </div>
             </div>
         </main>

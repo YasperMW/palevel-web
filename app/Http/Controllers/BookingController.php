@@ -283,12 +283,71 @@ class BookingController extends Controller
             if (!$paymentUrl) {
                 return back()->with('error', 'Payment URL not found. Please initiate payment again.');
             }
+
+            $paymentFlow = 'standard';
+            $displayAmount = $request->query('amount');
             
             // Just display the payment page with booking details and payment URL
-            return view('student.payment', compact('booking', 'paymentUrl'));
+            return view('student.payment', compact('booking', 'paymentUrl', 'paymentFlow', 'displayAmount'));
 
         } catch (\Exception $e) {
             Log::error("Payment page load failed: " . $e->getMessage());
+            return redirect()->route('student.bookings')->with('error', 'Failed to load payment page: ' . $e->getMessage());
+        }
+    }
+
+    public function showExtensionPayment($bookingId, Request $request)
+    {
+        try {
+            $token = Session::get('palevel_token');
+            if (!$token) {
+                return redirect()->route('login')->with('error', 'Please login to make payment');
+            }
+
+            $booking = $this->apiService->getBooking($bookingId, $token);
+            if (!$booking) {
+                return redirect()->route('student.bookings')->with('error', 'Booking not found');
+            }
+
+            $paymentUrl = $request->query('paymentUrl');
+            if (!$paymentUrl) {
+                return back()->with('error', 'Payment URL not found. Please initiate payment again.');
+            }
+
+            $paymentFlow = 'extension';
+            $displayAmount = $request->query('amount');
+
+            return view('student.payment', compact('booking', 'paymentUrl', 'paymentFlow', 'displayAmount'));
+        } catch (\Exception $e) {
+            Log::error("Extension payment page load failed: " . $e->getMessage());
+            return redirect()->route('student.bookings')->with('error', 'Failed to load payment page: ' . $e->getMessage());
+        }
+    }
+
+    public function showCompletePayment($bookingId, Request $request)
+    {
+        try {
+            $token = Session::get('palevel_token');
+            if (!$token) {
+                return redirect()->route('login')->with('error', 'Please login to make payment');
+            }
+
+            $booking = $this->apiService->getBooking($bookingId, $token);
+            if (!$booking) {
+                return redirect()->route('student.bookings')->with('error', 'Booking not found');
+            }
+
+            $paymentUrl = $request->query('paymentUrl');
+            if (!$paymentUrl) {
+                return back()->with('error', 'Payment URL not found. Please initiate payment again.');
+            }
+
+            $paymentFlow = 'complete';
+            $displayAmount = $request->query('amount');
+
+            return view('student.payment', compact('booking', 'paymentUrl', 'paymentFlow', 'displayAmount'));
+        } catch (\Exception $e) {
+            Log::error("Complete payment page load failed: " . $e->getMessage());
             return redirect()->route('student.bookings')->with('error', 'Failed to load payment page: ' . $e->getMessage());
         }
     }
@@ -522,6 +581,78 @@ class BookingController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to verify payment: ' . $e->getMessage()
+            ], $statusCode);
+        }
+    }
+
+    public function apiVerifyExtensionPayment(Request $request)
+    {
+        try {
+            $request->validate([
+                'payment_id' => 'required|string'
+            ]);
+
+            $token = Session::get('palevel_token');
+            if (!$token) {
+                return response()->json(['success' => false, 'message' => 'User not authenticated'], 401);
+            }
+
+            $paymentId = $request->payment_id;
+            $result = $this->apiService->verifyExtensionPayment($paymentId, $token);
+            $success = is_array($result) && (($result['status'] ?? null) === 'success');
+
+            return response()->json([
+                'success' => $success,
+                'data' => $result,
+                'message' => $success ? 'Extension payment verified successfully' : 'Extension payment not verified yet'
+            ]);
+        } catch (\Exception $e) {
+            Log::error("API extension payment verification failed: " . $e->getMessage());
+
+            $statusCode = 500;
+            if (preg_match('/API request failed: (\d+)/', $e->getMessage(), $matches)) {
+                $statusCode = (int)$matches[1];
+            }
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to verify extension payment: ' . $e->getMessage()
+            ], $statusCode);
+        }
+    }
+
+    public function apiVerifyCompletePayment(Request $request)
+    {
+        try {
+            $request->validate([
+                'payment_id' => 'required|string'
+            ]);
+
+            $token = Session::get('palevel_token');
+            if (!$token) {
+                return response()->json(['success' => false, 'message' => 'User not authenticated'], 401);
+            }
+
+            $paymentId = $request->payment_id;
+            $result = $this->apiService->verifyCompletePayment($paymentId, $token);
+            $success = is_array($result) && (($result['status'] ?? null) === 'success');
+
+            return response()->json([
+                'success' => $success,
+                'data' => $result,
+                'message' => $success ? 'Complete payment verified successfully' : 'Complete payment not verified yet'
+            ]);
+        } catch (\Exception $e) {
+            Log::error("API complete payment verification failed: " . $e->getMessage());
+
+            $statusCode = 500;
+            if (preg_match('/API request failed: (\d+)/', $e->getMessage(), $matches)) {
+                $statusCode = (int)$matches[1];
+            }
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to verify complete payment: ' . $e->getMessage()
             ], $statusCode);
         }
     }

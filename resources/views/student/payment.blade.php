@@ -3,6 +3,11 @@
 @section('title', 'Payment - PaLevel')
 
 @section('content')
+@php
+    $amountToPay = (isset($displayAmount) && is_numeric($displayAmount))
+        ? (float) $displayAmount
+        : (float) ($booking['total_amount'] ?? 0);
+@endphp
 <div class="min-h-screen bg-gray-50">
     <!-- Header -->
     <div class="bg-white shadow-sm border-b border-gray-200">
@@ -22,7 +27,7 @@
                 <div class="flex items-center space-x-4">
                     <div class="text-right">
                         <p class="text-sm text-gray-600">Amount to Pay</p>
-                        <p class="text-2xl font-bold text-teal-600">MWK {{ number_format($booking['total_amount'] ?? 0) }}</p>
+                        <p class="text-2xl font-bold text-teal-600">MWK {{ number_format($amountToPay) }}</p>
                     </div>
                 </div>
             </div>
@@ -223,6 +228,8 @@ const maxVerificationAttempts = 20; // Maximum attempts before timeout
 let nextVerificationDelayMs = 2000;
 const maxVerificationDelayMs = 30000;
 const pageLoadedAt = Date.now();
+let isVerificationInFlight = false;
+const paymentFlow = '{{ $paymentFlow ?? 'standard' }}';
 const bookingId = '{{ $booking['booking_id'] }}';
 const urlParams = new URLSearchParams(window.location.search);
 const paymentId = urlParams.get('paymentId') || (function() {
@@ -231,14 +238,19 @@ const paymentId = urlParams.get('paymentId') || (function() {
         return (pending && pending.bookingId == bookingId) ? pending.paymentId : null;
     } catch(e) { return null; }
 })();
-// Use paymentId if available, otherwise fallback to bookingId (legacy behavior)
-const verificationReference = paymentId || bookingId;
+// Standard payments can verify by reference (tx_ref) or legacy bookingId.
+// Extension/Complete payments must verify by tx_ref.
+const verificationReference = paymentFlow === 'standard' ? (paymentId || bookingId) : paymentId;
 
 let isPaymentCompleted = false;
 let isPaymentVerified = false;
 
 // Only setup iframe monitoring when page loads
 document.addEventListener('DOMContentLoaded', function() {
+    if (!verificationReference) {
+        showError('Payment reference not found. Please initiate payment again.');
+        return;
+    }
     setupIframeMonitoring();
     // Start verification polling in the background so we don't depend on iframe events
     // (PayChangu may not postMessage and iframe URL may remain cross-origin).
@@ -363,21 +375,44 @@ function refreshPayment() {
 
 async function verifyPaymentStatus() {
     if (isPaymentVerified) return;
+    if (isVerificationInFlight) return;
+    isVerificationInFlight = true;
     
     verificationAttempts++;
     updateVerificationProgress();
     
     try {
-        const response = await fetch(`/api/payments/verify?reference=${encodeURIComponent(verificationReference)}`, {
-            headers: {
-                'Accept': 'application/json'
-            }
-        });
+        let response;
+        if (paymentFlow === 'standard') {
+            response = await fetch(`/api/payments/verify?reference=${encodeURIComponent(verificationReference)}`, {
+                headers: {
+                    'Accept': 'application/json'
+                }
+            });
+        } else {
+            const url = paymentFlow === 'extension'
+                ? '/api/payments/verify-extension'
+                : '/api/payments/verify-complete';
+
+            response = await fetch(url, {
+                method: 'POST',
+                headers: {
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
+                },
+                body: JSON.stringify({ payment_id: verificationReference })
+            });
+        }
         
         const result = await response.json();
         console.log('Payment verification result:', result);
-        
-        if (result.success || (result.status === 'success' && result.data?.status === 'completed') || result.status === 'completed') {
+
+        const isVerified = paymentFlow === 'standard'
+            ? (result.success || (result.status === 'success' && result.data?.status === 'completed') || result.status === 'completed')
+            : !!result.success;
+
+        if (isVerified) {
             // Payment successful
             handlePaymentSuccess();
         } else {
@@ -399,6 +434,8 @@ async function verifyPaymentStatus() {
         } else {
             handleVerificationTimeout();
         }
+    } finally {
+        isVerificationInFlight = false;
     }
 }
 

@@ -199,8 +199,14 @@
                 <button type="button" onclick="closeExtendBookingModal()" class="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50">
                     Cancel
                 </button>
-                <button type="button" onclick="confirmExtendBooking()" class="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
-                    Proceed to Payment
+                <button id="extendProceedBtn" type="button" onclick="confirmExtendBooking()" class="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center justify-center" aria-busy="false">
+                    <span class="extend-proceed-label">Proceed to Payment</span>
+                    <span class="extend-proceed-spinner hidden ml-2 inline-flex items-center">
+                        <svg class="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>
+                        </svg>
+                    </span>
                 </button>
             </div>
         </div>
@@ -223,8 +229,14 @@
                 <button type="button" onclick="closeCompletePaymentModal()" class="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50">
                     Cancel
                 </button>
-                <button type="button" onclick="confirmCompletePayment()" class="flex-1 px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700">
-                    Proceed to Payment
+                <button id="completeProceedBtn" type="button" onclick="confirmCompletePayment()" class="flex-1 px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 flex items-center justify-center" aria-busy="false">
+                    <span class="complete-proceed-label">Proceed to Payment</span>
+                    <span class="complete-proceed-spinner hidden ml-2 inline-flex items-center">
+                        <svg class="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>
+                        </svg>
+                    </span>
                 </button>
             </div>
         </div>
@@ -235,6 +247,31 @@
 let activeBookingId = null;
 let cachedUserDetails = null;
 let cachedCompletePricing = null;
+let isExtendProceedInFlight = false;
+let isCompleteProceedInFlight = false;
+
+function setProceedButtonLoading(flow, isLoading) {
+    const id = flow === 'extend' ? 'extendProceedBtn' : 'completeProceedBtn';
+    const btn = document.getElementById(id);
+    if (!btn) return;
+
+    const label = btn.querySelector(flow === 'extend' ? '.extend-proceed-label' : '.complete-proceed-label');
+    const spinner = btn.querySelector(flow === 'extend' ? '.extend-proceed-spinner' : '.complete-proceed-spinner');
+
+    if (isLoading) {
+        btn.disabled = true;
+        btn.setAttribute('aria-busy', 'true');
+        btn.classList.add('opacity-75', 'pointer-events-none');
+        if (label) label.textContent = 'Loading...';
+        if (spinner) spinner.classList.remove('hidden');
+    } else {
+        btn.disabled = false;
+        btn.setAttribute('aria-busy', 'false');
+        btn.classList.remove('opacity-75', 'pointer-events-none');
+        if (label) label.textContent = 'Proceed to Payment';
+        if (spinner) spinner.classList.add('hidden');
+    }
+}
 
 function handleViewDetailsClick(event, el) {
     try {
@@ -313,9 +350,12 @@ async function refreshExtensionPricing() {
 
 async function confirmExtendBooking() {
     if (!activeBookingId) return;
+    if (isExtendProceedInFlight) return;
     const bookingId = activeBookingId;
     const months = parseInt(document.getElementById('extendMonths').value || '1', 10);
     try {
+        isExtendProceedInFlight = true;
+        setProceedButtonLoading('extend', true);
         const user = await getUserDetails();
 
         const statusRes = await fetch(`/api/bookings/${encodeURIComponent(activeBookingId)}/extension-status-update`, {
@@ -353,12 +393,16 @@ async function confirmExtendBooking() {
         const data = payJson.data || {};
         const paymentUrl = data.payment_url;
         const paymentId = data.tx_ref;
+        const amount = data.extension_amount;
 
         if (!paymentUrl) throw new Error('Payment URL not received');
         closeExtendBookingModal();
-        window.location.href = `/student/payment/${encodeURIComponent(bookingId)}?paymentUrl=${encodeURIComponent(paymentUrl)}&paymentId=${encodeURIComponent(paymentId || '')}`;
+        window.location.href = `/student/payment/extend/${encodeURIComponent(bookingId)}?paymentUrl=${encodeURIComponent(paymentUrl)}&paymentId=${encodeURIComponent(paymentId || '')}&amount=${encodeURIComponent(amount || '')}`;
     } catch (e) {
         PalevelDialog.error(String(e.message || e));
+    } finally {
+        isExtendProceedInFlight = false;
+        setProceedButtonLoading('extend', false);
     }
 }
 
@@ -407,8 +451,11 @@ async function refreshCompletePaymentPricing() {
 
 async function confirmCompletePayment() {
     if (!activeBookingId) return;
+    if (isCompleteProceedInFlight) return;
     const bookingId = activeBookingId;
     try {
+        isCompleteProceedInFlight = true;
+        setProceedButtonLoading('complete', true);
         const user = await getUserDetails();
         if (!cachedCompletePricing) {
             await refreshCompletePaymentPricing();
@@ -451,12 +498,16 @@ async function confirmCompletePayment() {
         const data = payJson.data || {};
         const paymentUrl = data.payment_url;
         const paymentId = data.tx_ref;
+        const amount = data.remaining_amount;
 
         if (!paymentUrl) throw new Error('Payment URL not received');
         closeCompletePaymentModal();
-        window.location.href = `/student/payment/${encodeURIComponent(bookingId)}?paymentUrl=${encodeURIComponent(paymentUrl)}&paymentId=${encodeURIComponent(paymentId || '')}`;
+        window.location.href = `/student/payment/complete/${encodeURIComponent(bookingId)}?paymentUrl=${encodeURIComponent(paymentUrl)}&paymentId=${encodeURIComponent(paymentId || '')}&amount=${encodeURIComponent(amount || '')}`;
     } catch (e) {
         PalevelDialog.error(String(e.message || e));
+    } finally {
+        isCompleteProceedInFlight = false;
+        setProceedButtonLoading('complete', false);
     }
 }
 </script>

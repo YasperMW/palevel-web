@@ -537,7 +537,7 @@ class PalevelApiService
 
     public function updateCompletePaymentStatus(string $bookingId, string $token)
     {
-        return $this->makeRequest('POST', "/bookings/{$bookingId}/complete-payment-status-update", [], [
+        return $this->makeRequest('POST', "/bookings/{$bookingId}/complete-payment-status-update", (object) [], [
             'Authorization' => 'Bearer ' . trim($token)
         ]);
     }

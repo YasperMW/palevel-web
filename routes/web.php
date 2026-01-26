@@ -122,6 +122,8 @@ Route::prefix('student')->name('student.')->middleware(['auth.palevel:tenant', '
     Route::get('/bookings/{bookingId}', [BookingController::class, 'showBookingDetail'])->name('bookings.show');
     Route::get('/profile', [DashboardController::class, 'studentProfile'])->name('profile');
     Route::get('/payment/{bookingId}', [BookingController::class, 'showPayment'])->name('payment');
+    Route::get('/payment/extend/{bookingId}', [BookingController::class, 'showExtensionPayment'])->name('payment.extend');
+    Route::get('/payment/complete/{bookingId}', [BookingController::class, 'showCompletePayment'])->name('payment.complete');
 });
 
 // Tenant Routes (Redirect to Student Dashboard)
@@ -154,6 +156,8 @@ Route::middleware('auth.palevel')->group(function () {
         Route::post('/payments/complete/initiate', [BookingController::class, 'apiInitiateCompletePayment'])->name('api.payments.complete.initiate');
         Route::post('/payments/paychangu/initiate', [BookingController::class, 'apiInitiatePayment'])->name('api.payments.paychangu.initiate');
         Route::get('/payments/verify', [BookingController::class, 'apiVerifyPayment'])->name('api.payments.verify');
+        Route::post('/payments/verify-extension', [BookingController::class, 'apiVerifyExtensionPayment'])->name('api.payments.verify-extension');
+        Route::post('/payments/verify-complete', [BookingController::class, 'apiVerifyCompletePayment'])->name('api.payments.verify-complete');
     });
     
     // Reviews API routes (for direct backend calls)
