@@ -453,6 +453,13 @@ def get_hostel(hostel_id: str, db: Session = Depends(get_db)):
             amenities = {k: bool(v) for k, v in hostel.amenities.items() if k}
     # If amenities is None or empty after processing, use an empty dict
         
+    # Find cover image
+    cover_media = next((m for m in media_files if m.is_cover), None)
+    if not cover_media and media_files:
+        cover_media = media_files[0]
+    
+    cover_image_url = cover_media.url if cover_media else None
+
     return {
         "hostel_id": str(hostel.hostel_id),
         "landlord_id": str(hostel.landlord_id),
@@ -471,6 +478,8 @@ def get_hostel(hostel_id: str, db: Session = Depends(get_db)):
         "total_rooms": total_rooms,
         "occupied_rooms": occupied_rooms,
         "available_rooms": total_rooms - occupied_rooms,
+        "cover_image_url": cover_image_url,
+        "image_url": cover_image_url, # Fallback for frontend
         "media": [
             {
                 "media_id": str(m.media_id),

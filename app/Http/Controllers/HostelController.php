@@ -35,6 +35,15 @@ class HostelController extends Controller
             $hostel = $this->apiService->getHostel($id);
             \Log::info("API call successful for hostel ID: " . $id);
             
+            // Normalize hostel data if wrapped
+            if (isset($hostel['data']) && is_array($hostel['data'])) {
+                $hostel = $hostel['data'];
+            } elseif (isset($hostel['hostel']) && is_array($hostel['hostel'])) {
+                $hostel = $hostel['hostel'];
+            }
+
+            \Illuminate\Support\Facades\Log::info('Hostel Data Debug:', ['hostel' => $hostel]);
+            
             // Fetch additional data like the Flutter app does
             $rooms = [];
             $reviews = [];

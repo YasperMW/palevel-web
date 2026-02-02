@@ -32,78 +32,108 @@ function formatDate($dateString) {
 
 @section('content')
 <div class="min-h-screen bg-gray-50">
-    <!-- Hero Section with Images -->
-    <div class="relative h-96 bg-gradient-to-br from-teal-600 to-teal-800">
-        @php
-            $coverImage = null;
-            if (isset($hostel['media']) && is_array($hostel['media']) && count($hostel['media']) > 0) {
-                foreach ($hostel['media'] as $media) {
-                    // Check for is_cover flag (loose check for true/1)
-                    $isCover = isset($media['is_cover']) && filter_var($media['is_cover'], FILTER_VALIDATE_BOOLEAN);
-                    
-                    if ($isCover) {
-                        $coverImage = \App\Helpers\MediaHelper::getMediaUrl($media['url']);
-                        break;
-                    }
-                }
-                
-                // Fallback: If no image is marked as cover (e.g. single image), use the first one
-                if (!$coverImage) {
-                    $coverImage = \App\Helpers\MediaHelper::getMediaUrl($hostel['media'][0]['url']);
-                }
-            }
-        @endphp
-        
-        @if($coverImage)
-            <img src="{{ $coverImage }}" alt="{{ $hostel['name'] }}" 
-                 class="w-full h-full object-cover">
-            <div class="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
-        @else
-            <div class="w-full h-full flex items-center justify-center">
-                <svg class="w-24 h-24 text-white/30" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path>
-                </svg>
-            </div>
-        @endif
-        
-        <!-- Back Button -->
-        <div class="absolute top-4 left-4">
-            <a href="{{ url()->previous() }}" 
-               class="inline-flex items-center px-4 py-2 bg-white/20 backdrop-blur-sm text-white rounded-lg hover:bg-white/30 transition-colors duration-200">
-                <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
-                </svg>
-                Back
-            </a>
-        </div>
-        
-        <!-- Share Button -->
-        <div class="absolute top-4 right-4">
-            <button onclick="shareHostel()" 
-                    class="inline-flex items-center px-4 py-2 bg-white/20 backdrop-blur-sm text-white rounded-lg hover:bg-white/30 transition-colors duration-200">
-                <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m9.032 4.026a3 3 0 10-4.732 2.684m4.732-2.684a3 3 0 00-4.732-2.684M3 12a3 3 0 104.732 2.684M3 12a3 3 0 014.732-2.684"></path>
-                </svg>
-                Share
-            </button>
-        </div>
-        
-        <!-- Hostel Title Overlay -->
-        @if($coverImage)
-        <div class="absolute bottom-0 left-0 right-0 p-8">
-            <div class="max-w-4xl mx-auto">
-                <h1 class="text-4xl font-bold text-white mb-2">{{ $hostel['name'] ?? 'Hostel' }}</h1>
-                <div class="flex items-center text-white/90">
+        <!-- Hero Section with Slideshow -->
+        <div class="relative h-[400px] md:h-[500px] bg-gray-900 overflow-hidden group" 
+             x-data="{ 
+                activeSlide: 0,
+                images: [
+                    @if(isset($hostel['media']) && count($hostel['media']) > 0)
+                        @foreach($hostel['media'] as $media)
+                            '{{ \App\Helpers\MediaHelper::getMediaUrl($media['url']) }}',
+                        @endforeach
+                    @elseif(isset($hostel['image_url']) && $hostel['image_url'])
+                         '{{ \App\Helpers\MediaHelper::getMediaUrl($hostel['image_url']) }}',
+                    @endif
+                ]
+             }">
+            
+            <!-- Slides -->
+            <template x-for="(image, index) in images" :key="index">
+                <div class="absolute inset-0 transition-opacity duration-1000 ease-in-out"
+                     x-show="activeSlide === index"
+                     x-transition:enter="transition ease-out duration-500"
+                     x-transition:enter-start="opacity-0"
+                     x-transition:enter-end="opacity-100"
+                     x-transition:leave="transition ease-in duration-500"
+                     x-transition:leave-start="opacity-100"
+                     x-transition:leave-end="opacity-0">
+                    <img :src="image" alt="Hostel Image" class="w-full h-full object-cover opacity-90">
+                    <div class="absolute inset-0 bg-gradient-to-t from-gray-900 via-transparent to-transparent opacity-80"></div>
+                </div>
+            </template>
+            
+
+
+            <!-- Back Button -->
+            <div class="absolute top-4 left-4 z-20">
+                <a href="{{ url()->previous() }}" 
+                   class="inline-flex items-center px-4 py-2 bg-black/20 backdrop-blur-sm text-white rounded-lg hover:bg-black/30 transition-colors duration-200">
                     <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path>
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
                     </svg>
-                    {{ $hostel['address'] ?? '' }}
+                    Back
+                </a>
+            </div>
+            
+            <!-- Share Button -->
+            <div class="absolute top-4 right-4 z-20">
+                <button onclick="shareHostel()" 
+                        class="inline-flex items-center px-4 py-2 bg-black/20 backdrop-blur-sm text-white rounded-lg hover:bg-black/30 transition-colors duration-200">
+                    <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m9.032 4.026a3 3 0 10-4.732 2.684m4.732-2.684a3 3 0 00-4.732-2.684M3 12a3 3 0 104.732 2.684M3 12a3 3 0 014.732-2.684"></path>
+                    </svg>
+                    Share
+                </button>
+            </div>
+
+            <!-- Content Overlay -->
+            <div class="absolute bottom-0 left-0 right-0 p-8 z-10">
+                <div class="container mx-auto px-4">
+                    <div class="max-w-3xl animate-fade-in-up">
+                        <div class="flex items-center space-x-2 text-teal-300 font-medium mb-3">
+                            <span class="bg-teal-500/20 backdrop-blur-sm px-3 py-1 rounded-full text-sm border border-teal-500/30">
+                                {{ $hostel['type'] ?? 'Hostel' }}
+                            </span>
+                             @if(isset($hostel['distance']))
+                            <span class="flex items-center text-sm">
+                                <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+                                {{ $hostel['distance'] }}
+                            </span>
+                            @endif
+                        </div>
+                        <h1 class="text-4xl md:text-5xl font-bold text-white mb-4 leading-tight shadow-sm">{{ $hostel['name'] }}</h1>
+                        <p class="text-xl text-gray-200 flex items-center">
+                            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+                            {{ $hostel['address'] }}, {{ $hostel['district'] }}
+                        </p>
+                    </div>
                 </div>
             </div>
+
+            <!-- Navigation Buttons -->
+            <template x-if="images.length > 1">
+                <div>
+                    <button @click="activeSlide = activeSlide === 0 ? images.length - 1 : activeSlide - 1" 
+                            class="absolute left-4 top-1/2 transform -translate-y-1/2 bg-black/30 hover:bg-black/50 text-white p-3 rounded-full backdrop-blur-sm transition-all opacity-0 group-hover:opacity-100 btn-prev z-20">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
+                    </button>
+                    <button @click="activeSlide = activeSlide === images.length - 1 ? 0 : activeSlide + 1" 
+                            class="absolute right-4 top-1/2 transform -translate-y-1/2 bg-black/30 hover:bg-black/50 text-white p-3 rounded-full backdrop-blur-sm transition-all opacity-0 group-hover:opacity-100 btn-next z-20">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
+                    </button>
+                    
+                    <!-- Indicators -->
+                    <div class="absolute bottom-4 left-0 right-0 flex justify-center space-x-2 z-20">
+                        <template x-for="(img, idx) in images" :key="idx">
+                            <button @click="activeSlide = idx" 
+                                    class="w-2.5 h-2.5 rounded-full transition-all duration-300"
+                                    :class="activeSlide === idx ? 'bg-white w-6' : 'bg-white/50 hover:bg-white/80'">
+                            </button>
+                        </template>
+                    </div>
+                </div>
+            </template>
         </div>
-        @endif
-    </div>
 
     <!-- Main Content -->
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
