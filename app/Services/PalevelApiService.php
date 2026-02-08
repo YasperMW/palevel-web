@@ -519,7 +519,8 @@ class PalevelApiService
 
     public function verifyPayment(string $reference, string $token)
     {
-        return $this->makeRequest('GET', '/payments/verify/', ['reference' => $reference], [
+        // Use endpoint without trailing slash to avoid potential redirects stripping auth headers
+        return $this->makeRequest('GET', '/payments/verify', ['reference' => $reference], [
             'Authorization' => 'Bearer ' . trim($token)
         ]);
     }

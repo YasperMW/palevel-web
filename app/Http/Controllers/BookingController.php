@@ -539,7 +539,8 @@ class BookingController extends Controller
             'headers' => $request->header(),
             'query' => $request->query(),
             'body' => $request->all(),
-            'reference' => $request->reference
+            'reference' => $request->reference,
+            'ip' => $request->ip()
         ]);
 
         try {
@@ -550,6 +551,7 @@ class BookingController extends Controller
             $token = Session::get('palevel_token');
             Log::info('Payment verification session token presence', [
                 'has_token' => !empty($token),
+                'token_prefix' => $token ? substr($token, 0, 10) . '...' : 'null',
                 'token_length' => is_string($token) ? strlen(trim($token)) : null,
             ]);
             if (!$token) {
