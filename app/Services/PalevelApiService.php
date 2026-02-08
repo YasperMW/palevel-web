@@ -498,7 +498,7 @@ class PalevelApiService
 
     public function initiatePayChanguPayment(array $paymentData, string $token)
     {
-        return $this->makeRequest('POST', '/payments/paychangu/initiate', $paymentData, [
+        return $this->makeRequest('POST', '/payments/paychangu/initiate/', $paymentData, [
             'Authorization' => 'Bearer ' . trim($token)
         ]);
     }
