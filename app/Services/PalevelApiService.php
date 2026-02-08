@@ -54,6 +54,20 @@ class PalevelApiService
 
             $headers = array_merge($defaultHeaders, $headers);
 
+            $authHeader = null;
+            foreach ($headers as $headerKey => $headerValue) {
+                if (is_string($headerKey) && strtolower($headerKey) === 'authorization') {
+                    $authHeader = is_string($headerValue) ? $headerValue : null;
+                    break;
+                }
+            }
+
+            Log::info('Outgoing API auth header presence', [
+                'url' => $urlForLog,
+                'has_authorization_header' => !empty($authHeader),
+                'authorization_header_length' => is_string($authHeader) ? strlen($authHeader) : null,
+            ]);
+
             $timeout = max(1, (int) $this->timeout);
 
             $request = Http::timeout($timeout)

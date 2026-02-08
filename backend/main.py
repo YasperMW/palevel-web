@@ -13,6 +13,7 @@ import time
 import asyncio
 from typing import Callable, Optional
 from contextlib import asynccontextmanager
+from fastapi.routing import APIRoute
 from database import engine, Base, db_session, get_db
 from endpoints import users, hostels, rooms, media, config, bookings, browse
 from endpoints import payments, health, verifications
@@ -86,6 +87,7 @@ async def lifespan(app: FastAPI):
 # Initialize FastAPI app with middleware and lifespan
 app = FastAPI(
     title="Palevel Accommodation Finder API",
+    redirect_slashes=False,
     middleware=[
         Middleware(TimeoutMiddleware, timeout=30)  # 30 seconds timeout
     ],
@@ -213,6 +215,68 @@ app.include_router(oauth.router, prefix="/auth", tags=["oauth"])
 app.include_router(pdf_service.router)
 app.include_router(banks.router, tags=["banks"])
 app.include_router(data_deletion.router, prefix="/api/data-deletion", tags=["data-deletion"])
+
+
+def _add_slash_variants_for_all_routes(fastapi_app: FastAPI) -> None:
+    existing_paths = set()
+    for r in fastapi_app.router.routes:
+        if hasattr(r, "path"):
+            existing_paths.add(getattr(r, "path"))
+
+    # Iterate over a snapshot since we'll be adding routes
+    for route in list(fastapi_app.router.routes):
+        if not isinstance(route, APIRoute):
+            continue
+
+        path = route.path
+        if not isinstance(path, str):
+            continue
+
+        # Skip FastAPI's own docs/openapi endpoints if present
+        if path in {"/openapi.json", "/docs", "/docs/", "/redoc", "/redoc/"}:
+            continue
+
+        if path == "/":
+            continue
+
+        if path.endswith("/"):
+            alt_path = path.rstrip("/")
+        else:
+            alt_path = path + "/"
+
+        if not alt_path or alt_path == path:
+            continue
+
+        if alt_path in existing_paths:
+            continue
+
+        fastapi_app.add_api_route(
+            alt_path,
+            route.endpoint,
+            methods=list(route.methods or []),
+            response_model=route.response_model,
+            status_code=route.status_code,
+            tags=route.tags,
+            dependencies=route.dependencies,
+            summary=route.summary,
+            description=route.description,
+            response_description=route.response_description,
+            responses=route.responses,
+            deprecated=route.deprecated,
+            operation_id=route.operation_id,
+            response_model_include=route.response_model_include,
+            response_model_exclude=route.response_model_exclude,
+            response_model_by_alias=route.response_model_by_alias,
+            response_model_exclude_unset=route.response_model_exclude_unset,
+            response_model_exclude_defaults=route.response_model_exclude_defaults,
+            response_model_exclude_none=route.response_model_exclude_none,
+            include_in_schema=False,
+            name=route.name,
+        )
+        existing_paths.add(alt_path)
+
+
+_add_slash_variants_for_all_routes(app)
 
 # Add request timing middleware
 @app.middleware("http")

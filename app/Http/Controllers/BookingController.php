@@ -548,6 +548,10 @@ class BookingController extends Controller
             ]);
 
             $token = Session::get('palevel_token');
+            Log::info('Payment verification session token presence', [
+                'has_token' => !empty($token),
+                'token_length' => is_string($token) ? strlen(trim($token)) : null,
+            ]);
             if (!$token) {
                 Log::warning('Payment verification failed: User not authenticated');
                 return response()->json(['success' => false, 'message' => 'User not authenticated'], 401);

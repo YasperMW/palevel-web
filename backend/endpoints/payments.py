@@ -61,6 +61,7 @@ def _get_paychangu_client():
     return client, Payment
 
 
+@router.post("/paychangu/initiate")
 @router.post("/paychangu/initiate/")
 def initiate_paychangu_payment(payload: dict, current_user=Depends(get_current_user), db: Session = Depends(get_db)):
     """Initiate a PayChangu payment server-side and return a payment URL."""
@@ -161,6 +162,7 @@ def initiate_paychangu_payment(payload: dict, current_user=Depends(get_current_u
         error_detail = response.get("message", str(response))
         raise HTTPException(status_code=400, detail=f"PayChangu initiation failed: {error_detail}")
 
+@router.get("/verify")
 @router.get("/verify/")
 async def verify_payment(
     reference: str, 
